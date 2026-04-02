@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# 配置文件（含 API Key，不要提交）
+config.json
+*.env
+.env
+
+# 数据目录
+~/.aicli/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 测试缓存
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# macOS
+.DS_Store
