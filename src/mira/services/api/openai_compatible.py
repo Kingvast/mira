@@ -21,7 +21,8 @@ class OpenAICompatibleClient(BaseAPIClient):
     def __init__(self, config: dict):
         super().__init__(config)
         base_url = config.get("base_url", "https://api.openai.com/v1").rstrip("/")
-        self.chat_url = f"{base_url}/chat/completions"
+        # Allow providers to override the full chat endpoint URL
+        self.chat_url = config.get("chat_url") or f"{base_url}/chat/completions"
         self.supports_tools = config.get("supports_tools", True)
         self.headers = {
             "Content-Type": "application/json",

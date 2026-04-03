@@ -13,9 +13,6 @@ config.json
 *.env
 .env
 
-# 数据目录
-~/.aicli/
-
 # IDE
 .idea/
 .vscode/
@@ -30,3 +27,6 @@ htmlcov/
 
 # macOS
 .DS_Store
+
+# Claude Code 本地设置
+.claude/

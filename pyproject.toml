@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mira-ai"
 dynamic = ["version"]
-description = "Mira — AI 智能编程助手，支持 9 大 AI 提供商的 CLI + Web UI"
+description = "Mira — AI 智能编程助手，支持 16 大 AI 提供商的 CLI + Web UI"
 authors = [
     { name = "Charon", email = "kingvast.wh@gmail.com" },
 ]
@@ -28,38 +28,42 @@ dependencies = [
     "openai>=1.0.0",
     "anthropic>=0.18.0",
     "google-generativeai>=0.3.0",
-    # Web UI（用于 --web 模式）
+    # Web UI
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.27.0",
     "websockets>=12.0",
     "aiofiles>=23.0.0",
     "pydantic>=2.0.0",
+    "python-multipart>=0.0.6",  # 文件上传
     # 可选功能
-    "PyPDF2>=3.0.0",        # PDF 文件读取
+    "PyPDF2>=3.0.0",            # PDF 文件读取
 ]
 
 [project.optional-dependencies]
-web = [
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.27.0",
-    "websockets>=12.0",
-    "aiofiles>=23.0.0",
-    "python-multipart>=0.0.6",
-]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
 ]
+build = [
+    "pyinstaller>=6.0.0",
+]
 
 [project.scripts]
-mira  = "mira.main:main"
-aicli = "mira.main:main"   # backward-compat alias
+mira = "mira.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"mira.web" = ["static/*"]
+"mira.web" = ["static/*", "static/**/*"]
+
+[tool.setuptools.data-files]
+"share/mira/assets" = [
+    "assets/logo.png",
+    "assets/icon-256.png",
+    "assets/icon-512.png",
+    "assets/icon.ico",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "mira.__version__"}

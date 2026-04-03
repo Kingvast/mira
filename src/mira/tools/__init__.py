@@ -23,6 +23,10 @@ from mira.tools.git_tools import (
     GitStatusTool, GitDiffTool, GitLogTool,
     GitAddTool, GitCommitTool, GitBranchTool, GitPushTool,
 )
+from mira.tools.system_tools import (
+    HttpRequestTool, ArchiveTool, EnvTool, ProcessTool,
+    DateTimeTool, HashTool, Base64Tool,
+)
 
 
 def get_tools():
@@ -72,6 +76,14 @@ def get_tools():
         GitCommitTool(),
         GitBranchTool(),
         GitPushTool(),
+        # ── 系统工具 ──────────────────────────────────────────
+        HttpRequestTool(),
+        ArchiveTool(),
+        EnvTool(),
+        ProcessTool(),
+        DateTimeTool(),
+        HashTool(),
+        Base64Tool(),
     ]
 
 

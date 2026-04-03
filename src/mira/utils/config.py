@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-配置管理 - 支持 9 大 AI 提供商的 API Key / Model 配置
+配置管理 - 支持 15 大 AI 提供商的 API Key / Model 配置
 """
 
 import os
@@ -19,66 +19,197 @@ PROVIDER_DEFAULTS: Dict[str, Dict] = {
         "name": "OpenAI",
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
+        "models": [
+            "gpt-5.4", "gpt-5.4-mini",
+            "gpt-4o", "gpt-4o-mini",
+            "gpt-4-turbo", "gpt-3.5-turbo",
+            "text-embedding-3-large", "text-embedding-3-small",
+        ],
         "default_model": "gpt-4o",
     },
     "anthropic": {
         "name": "Anthropic",
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com",
-        "models": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5",
-                   "claude-3-opus-20240229", "claude-3-sonnet-20240229"],
-        "default_model": "claude-opus-4-6",
+        "models": [
+            "claude-opus-4-6",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-20250514",
+        ],
+        "default_model": "claude-sonnet-4-6",
     },
     "google": {
         "name": "Google Gemini",
         "api_key_env": "GOOGLE_API_KEY",
         "base_url": "",
-        "models": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
-        "default_model": "gemini-1.5-pro",
+        "models": [
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+        ],
+        "default_model": "gemini-2.5-flash",
+    },
+    "xai": {
+        "name": "xAI Grok",
+        "api_key_env": "XAI_API_KEY",
+        "base_url": "https://api.x.ai/v1",
+        "models": [
+            "grok-4",
+            "grok-3",
+            "grok-3-mini",
+        ],
+        "default_model": "grok-3",
+    },
+    "mistral": {
+        "name": "Mistral AI",
+        "api_key_env": "MISTRAL_API_KEY",
+        "base_url": "https://api.mistral.ai/v1",
+        "models": [
+            "mistral-large-latest",
+            "mistral-large-2411",
+            "open-mistral-nemo",
+            "codestral-latest",
+        ],
+        "default_model": "mistral-large-latest",
     },
     "deepseek": {
         "name": "DeepSeek",
         "api_key_env": "DEEPSEEK_API_KEY",
         "base_url": "https://api.deepseek.com/v1",
-        "models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+        "models": [
+            "deepseek-chat",
+            "deepseek-reasoner",
+        ],
         "default_model": "deepseek-chat",
     },
+    "qwen": {
+        "name": "Alibaba Qwen",
+        "api_key_env": "DASHSCOPE_API_KEY",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "models": [
+            "qwen-max",
+            "qwen-plus",
+            "qwen-turbo",
+            "qwen-long",
+            "qwen-vl-max",
+        ],
+        "default_model": "qwen-max",
+    },
     "zhipu": {
-        "name": "智谱 GLM",
+        "name": "Zhipu GLM",
         "api_key_env": "ZHIPU_API_KEY",
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
-        "models": ["glm-4-plus", "glm-4", "glm-4-flash", "glm-3-turbo"],
-        "default_model": "glm-4-plus",
+        "models": [
+            "glm-5",
+            "glm-5-turbo",
+            "glm-4",
+            "glm-4.7-flash",
+            "glm-4.6v",
+        ],
+        "default_model": "glm-5",
     },
     "moonshot": {
-        "name": "月之暗面 Kimi",
+        "name": "Moonshot Kimi",
         "api_key_env": "MOONSHOT_API_KEY",
         "base_url": "https://api.moonshot.cn/v1",
-        "models": ["moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k"],
-        "default_model": "moonshot-v1-32k",
+        "models": [
+            "kimi-k2.5",
+            "moonshot-v1-128k",
+            "moonshot-v1-32k",
+            "moonshot-v1-8k",
+        ],
+        "default_model": "kimi-k2.5",
     },
     "doubao": {
-        "name": "豆包 (字节)",
+        "name": "Doubao (ByteDance)",
         "api_key_env": "DOUBAO_API_KEY",
         "base_url": "https://ark.cn-beijing.volces.com/api/v3",
-        "models": ["doubao-pro-32k", "doubao-pro-4k", "doubao-lite-4k"],
-        "default_model": "doubao-pro-32k",
+        "models": [
+            "doubao-seed-2-0-pro-260215",
+            "doubao-seed-2-0-lite-260215",
+            "doubao-seed-1-6-251015",
+            "doubao-pro-32k",
+            "doubao-lite-32k",
+        ],
+        "default_model": "doubao-seed-2-0-pro-260215",
     },
     "minimax": {
         "name": "MiniMax",
         "api_key_env": "MINIMAX_API_KEY",
         "base_url": "https://api.minimax.chat/v1",
-        "models": ["abab6.5s-chat", "abab6.5-chat"],
-        "default_model": "abab6.5s-chat",
+        "chat_url": "https://api.minimax.chat/v1/text/chatcompletion_v2",
+        "models": [
+            "MiniMax-M2.7",
+            "MiniMax-M2.7-highspeed",
+            "MiniMax-M2.5",
+            "MiniMax-M2.5-highspeed",
+        ],
+        "default_model": "MiniMax-M2.7",
+    },
+    "lingyi": {
+        "name": "Yi (01.AI)",
+        "api_key_env": "LINGYI_API_KEY",
+        "base_url": "https://api.lingyiwanwu.com/v1",
+        "models": [
+            "yi-large",
+            "yi-large-turbo",
+            "yi-vision",
+        ],
+        "default_model": "yi-large",
+    },
+    "baichuan": {
+        "name": "Baichuan AI",
+        "api_key_env": "BAICHUAN_API_KEY",
+        "base_url": "https://api.baichuan-ai.com/v1",
+        "models": [
+            "Baichuan4",
+            "Baichuan4-Turbo",
+            "Baichuan4-Air",
+            "Baichuan3-Turbo",
+            "Baichuan3-Turbo-128k",
+        ],
+        "default_model": "Baichuan4",
+    },
+    "ernie": {
+        "name": "Baidu ERNIE",
+        "api_key_env": "ERNIE_API_KEY",
+        "base_url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
+        "chat_url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions",
+        "models": [
+            "ERNIE-4.0-Turbo-8K",
+            "ERNIE-3.5-8K",
+            "ERNIE-3.5-128K",
+            "ERNIE-Speed-8K",
+            "ERNIE-Speed-128K",
+        ],
+        "default_model": "ERNIE-4.0-Turbo-8K",
+    },
+    "spark": {
+        "name": "Spark (iFlytek)",
+        "api_key_env": "SPARK_API_KEY",
+        "base_url": "https://spark-api-open.xf-yun.com/v1",
+        "models": [
+            "4.0Ultra",
+            "generalv3.5",
+            "general",
+        ],
+        "default_model": "4.0Ultra",
     },
     "longcat": {
         "name": "LongCat",
         "api_key_env": "LONGCAT_API_KEY",
         "base_url": "https://api.longcat.chat/openai/v1",
-        "models": ["LongCat-Flash-Omni-2603", "LongCat-Flash-Thinking-2601",
-                   "LongCat-Flash-Chat", "LongCat-Flash-Lite"],
-        "default_model": "LongCat-Flash-Chat",
+        "models": [
+            "LongCat-Flash-Omni-2603",
+            "LongCat-Flash-Chat-2602-Exp",
+            "LongCat-Flash-Thinking-2601",
+            "LongCat-Flash-Thinking",
+            "LongCat-Flash-Chat",
+            "LongCat-Flash-Lite",
+        ],
+        "default_model": "LongCat-Flash-Omni-2603",
     },
 }
 
@@ -107,6 +238,10 @@ def load_config() -> dict:
             except Exception as e:
                 print(f"警告：读取配置文件 {cfg_path} 失败: {e}")
 
+    # 内置厂商的模型列表始终以 PROVIDER_DEFAULTS 为准，防止配置文件中的旧数据覆盖
+    for pid, pdef in PROVIDER_DEFAULTS.items():
+        config.setdefault("provider_models", {})[pid] = pdef["models"]
+
     # 环境变量最高优先级（覆盖文件配置）
     for provider, pdef in PROVIDER_DEFAULTS.items():
         val = os.environ.get(pdef["api_key_env"])
@@ -121,8 +256,8 @@ def save_config(config: dict, path: Optional[Path] = None):
     if path is None:
         _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         path = _CONFIG_FILE
-    # 不写入空值
-    clean = {k: v for k, v in config.items() if v is not None and v != ""}
+    # 不写入空值；provider_models 始终从 PROVIDER_DEFAULTS 派生，不持久化避免过期
+    clean = {k: v for k, v in config.items() if v is not None and v != "" and k != "provider_models"}
     path.write_text(json.dumps(clean, ensure_ascii=False, indent=2), encoding="utf-8")
     return str(path)
 
@@ -154,7 +289,10 @@ def get_provider_base_url(provider: str, config: dict) -> Optional[str]:
 
 
 def get_default_model(provider: str, config: dict) -> str:
-    """获取提供商的默认模型"""
+    """获取提供商的默认/已选模型（优先用户选择，不影响完整模型列表）"""
+    selected = config.get("provider_selected_models", {}).get(provider)
+    if selected:
+        return selected
     models = get_models(provider, config)
     return models[0] if models else ""
 

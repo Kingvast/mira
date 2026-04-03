@@ -52,4 +52,4 @@ class ExitCommand(Command):
         return "退出 CLI"
     
     def execute(self, command: str, engine) -> None:
-        raise KeyboardInterrupt
+        raise SystemExit(0)

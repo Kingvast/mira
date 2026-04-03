@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-记忆系统 - 多层级 NOTES.md 加载
+记忆系统 - 多层级记忆文件加载
 
 加载优先级（从高到低）：
-1. <cwd>/NOTES.md
-2. 父目录向上递归（直到文件系统根）
-3. 用户全局 ~/.mira/memory/*.md 和 ~/.mira/NOTES.md
+1. <cwd>/NOTES.md 或 CLAUDE.md（兼容读取）
+2. <cwd>/.mira/memory/*.md（项目级结构化记忆）
+3. 父目录向上递归（直到文件系统根）
+4. 用户全局 ~/.mira/memory/*.md 和 ~/.mira/NOTES.md
 """
 
 import os
@@ -34,11 +35,11 @@ def load_memory_sources() -> List[Dict]:
     sources: List[Dict] = []
     seen: set = set()
 
-    # 1. 当前目录向上递归查找 NOTES.md / CLAUDE.md / .claude/memory/*.md
+    # 1. 当前目录向上递归查找 NOTES.md / CLAUDE.md / .mira/memory/*.md
     current = Path.cwd().resolve()
     level = 0
     while True:
-        # NOTES.md（本项目标准）
+        # NOTES.md（本项目标准）/ CLAUDE.md（兼容读取，不写入）
         for fname in (_NOTES_FILENAME, _CLAUDE_FILENAME):
             p = current / fname
             if p.exists() and p.is_file() and str(p) not in seen:
@@ -46,10 +47,10 @@ def load_memory_sources() -> List[Dict]:
                 if content.strip():
                     sources.append({"path": p, "content": content, "level": level})
                     seen.add(str(p))
-        # .claude/memory/*.md（Claude Code 兼容格式）
-        claude_mem = current / ".claude" / "memory"
-        if claude_mem.is_dir():
-            for md in sorted(claude_mem.glob("*.md")):
+        # .mira/memory/*.md（项目级结构化记忆目录）
+        mira_mem = current / ".mira" / "memory"
+        if mira_mem.is_dir():
+            for md in sorted(mira_mem.glob("*.md")):
                 if str(md) not in seen:
                     content = _read_file(md)
                     if content.strip():

@@ -96,11 +96,7 @@ async def update_provider_config(req: ProviderConfigRequest):
     if req.api_key is not None:
         config[f"{req.provider}_api_key"] = req.api_key
     if req.model is not None:
-        models = config.setdefault("provider_models", {})
-        existing = models.get(req.provider, [])
-        if req.model not in existing:
-            existing.insert(0, req.model)
-        models[req.provider] = existing
+        config.setdefault("provider_selected_models", {})[req.provider] = req.model
     if req.base_url is not None:
         config.setdefault("provider_base_urls", {})[req.provider] = req.base_url
     save_config(config)
@@ -670,7 +666,7 @@ class ChatSession:
                 cfg = load_config()
                 cfg["default_provider"] = provider
                 if model:
-                    cfg.setdefault("provider_models", {})[provider] = [model]
+                    cfg.setdefault("provider_selected_models", {})[provider] = model
                 save_config(cfg)
                 await self.send({
                     "type": "ready",
@@ -919,21 +915,65 @@ async def chat_ws(websocket: WebSocket):
 
 # ─── 启动入口 ────────────────────────────────────────────────────────────────
 
+def find_free_port(start: int = 8080, end: int = 9000) -> int:
+    """在 [start, end) 范围内扫描并返回第一个空闲的 TCP 端口。"""
+    import socket
+    for port in range(start, end):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"在 {start}–{end} 范围内找不到空闲端口，请手动指定 --port")
+
+
 def start_server(host: str = "127.0.0.1", port: int = 8080, open_browser: bool = True):
-    """启动 Web 服务器"""
+    """启动 Web 服务器。若指定端口被占用则自动向后查找空闲端口。"""
+    import sys
     import uvicorn
+    import socket
+
+    # Windows 上必须使用 SelectorEventLoop，ProactorEventLoop 与 uvicorn 不兼容
+    if sys.platform == "win32":
+        import asyncio
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    # 检测端口是否可用，被占用则自动寻找空闲端口
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
+        _s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            _s.bind((host, port))
+        except OSError:
+            old_port = port
+            port = find_free_port(port + 1)
+            print(f"  端口 {old_port} 已被占用，自动切换到 {port}")
 
     if open_browser:
         import threading
         import webbrowser
+        _url = f"http://{host}:{port}"
         def _open():
             import time
-            time.sleep(1.2)
-            webbrowser.open(f"http://{host}:{port}")
+            time.sleep(1.5)
+            webbrowser.open(_url)
         threading.Thread(target=_open, daemon=True).start()
 
     print(f"\n✦  Mira Web UI")
     print(f"   地址: http://{host}:{port}")
     print(f"   按 Ctrl+C 停止\n")
 
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    try:
+        uvicorn.run(app, host=host, port=port, log_level="warning")
+    except Exception as exc:
+        # 在打包环境（无控制台）下将错误写入日志文件方便排查
+        if getattr(sys, "frozen", False):
+            import traceback
+            log_path = Path.home() / ".mira" / "error.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(
+                f"Mira Web Server Error\n{'='*40}\n{traceback.format_exc()}",
+                encoding="utf-8",
+            )
+        raise

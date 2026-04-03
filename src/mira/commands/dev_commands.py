@@ -102,7 +102,7 @@ class ModelCommand(Command):
             # 持久化：下次启动自动使用此提供商和模型
             from mira.utils.config import save_config
             engine.config["default_provider"] = provider
-            engine.config.setdefault("provider_models", {})[provider] = [model]
+            engine.config.setdefault("provider_selected_models", {})[provider] = model
             save_config(engine.config)
             print(f"✓ 已切换到 {provider} / {model}（已保存为默认）")
         except Exception as e:

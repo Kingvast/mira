@@ -18,15 +18,22 @@ from mira.utils.config import load_config, save_config, get_api_key, get_default
 # ── 提供商元数据（用于首次启动向导）──────────────────────────────────────────
 
 _PROVIDER_META = [
-    ("anthropic", "Anthropic Claude",   "ANTHROPIC_API_KEY",  "sk-ant-..."),
-    ("openai",    "OpenAI GPT",          "OPENAI_API_KEY",     "sk-..."),
-    ("deepseek",  "DeepSeek",            "DEEPSEEK_API_KEY",   "sk-..."),
-    ("google",    "Google Gemini",       "GOOGLE_API_KEY",     "AIza..."),
-    ("zhipu",     "智谱 GLM",            "ZHIPU_API_KEY",      "..."),
-    ("moonshot",  "月之暗面 Kimi",        "MOONSHOT_API_KEY",   "sk-..."),
-    ("doubao",    "豆包 (字节跳动)",      "DOUBAO_API_KEY",     "..."),
-    ("minimax",   "MiniMax",             "MINIMAX_API_KEY",    "..."),
-    ("longcat",   "LongCat",             "LONGCAT_API_KEY",    "ak_..."),
+    ("anthropic", "Anthropic Claude",   "ANTHROPIC_API_KEY",    "sk-ant-..."),
+    ("openai",    "OpenAI GPT",          "OPENAI_API_KEY",       "sk-..."),
+    ("deepseek",  "DeepSeek",            "DEEPSEEK_API_KEY",     "sk-..."),
+    ("google",    "Google Gemini",       "GOOGLE_API_KEY",       "AIza..."),
+    ("xai",       "xAI Grok",           "XAI_API_KEY",          "xai-..."),
+    ("mistral",   "Mistral AI",         "MISTRAL_API_KEY",      "..."),
+    ("qwen",      "Alibaba Qwen",       "DASHSCOPE_API_KEY",    "sk-..."),
+    ("zhipu",     "Zhipu GLM",          "ZHIPU_API_KEY",        "..."),
+    ("moonshot",  "Moonshot Kimi",      "MOONSHOT_API_KEY",     "sk-..."),
+    ("doubao",    "Doubao (ByteDance)", "DOUBAO_API_KEY",       "..."),
+    ("minimax",   "MiniMax",            "MINIMAX_API_KEY",      "..."),
+    ("lingyi",    "Yi (01.AI)",         "LINGYI_API_KEY",       "..."),
+    ("baichuan",  "Baichuan AI",        "BAICHUAN_API_KEY",     "..."),
+    ("ernie",     "Baidu ERNIE",        "ERNIE_API_KEY",        "..."),
+    ("spark",     "Spark (iFlytek)",    "SPARK_API_KEY",        "..."),
+    ("longcat",   "LongCat",            "LONGCAT_API_KEY",      "ak_..."),
 ]
 
 
@@ -164,4 +171,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # PyInstaller Windows 多进程支持（必须在 main() 之前调用）
+    import multiprocessing
+    multiprocessing.freeze_support()
     main()

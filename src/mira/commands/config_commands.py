@@ -162,7 +162,7 @@ class ConfigCommand(Command):
 
 
 class PermissionsCommand(Command):
-    """查看权限设置"""
+    """查看和管理会话权限"""
 
     @property
     def name(self) -> str:
@@ -170,12 +170,91 @@ class PermissionsCommand(Command):
 
     @property
     def description(self) -> str:
-        return "查看当前权限设置和工具列表"
+        return "管理工具权限。用法: /permissions [show|allow <file|dir|tool> <路径/名称>|revoke ...|clear]"
 
     def execute(self, command: str, engine) -> None:
-        skip = engine.skip_permissions
-        print(f"权限模式: {'⚡ 自动批准（dangerously_skip_permissions=true）' if skip else '🔒 手动确认'}")
-        print(f"\n已注册工具 ({len(engine.tools)} 个):\n")
-        for tool in engine.tools:
-            desc = tool.description.split("\n")[0][:60]
-            print(f"  • {tool.name:<25} {desc}")
+        from mira.utils.permissions import (
+            allow_tool, allow_file, allow_dir,
+            revoke_tool, revoke_file, revoke_dir,
+            clear_all, get_status,
+        )
+
+        parts = command.strip().split(None, 3)
+        sub = parts[1].lower() if len(parts) > 1 else "show"
+
+        # ── show ───────────────────────────────────────────────────────────
+        if sub in ("show", "list", "status"):
+            skip = engine.skip_permissions
+            status = get_status()
+            mode = "⚡ 自动批准 (dangerously_skip_permissions=true)" if skip else "🔒 手动确认"
+            print(f"\n  权限模式: {mode}")
+            print(f"\n  会话内已授权：")
+            if not (status["tools"] or status["files"] or status["dirs"]):
+                print("    (暂无)")
+            for t in status["tools"]:
+                print(f"    工具  {t}")
+            for f in status["files"]:
+                print(f"    文件  {f}")
+            for d in status["dirs"]:
+                print(f"    目录  {d}")
+            print(f"\n  已注册工具 ({len(engine.tools)} 个):\n")
+            for tool in engine.tools:
+                desc = tool.description.split("\n")[0][:55]
+                print(f"    {tool.name:<26} {desc}")
+            print()
+            return
+
+        # ── allow ──────────────────────────────────────────────────────────
+        if sub == "allow":
+            if len(parts) < 4:
+                print("  用法: /permissions allow <file|dir|tool> <路径或工具名>")
+                return
+            kind = parts[2].lower()
+            value = parts[3].strip()
+            if kind in ("file", "f"):
+                allow_file(value)
+                print(f"  ✓ 已授权文件: {value}")
+            elif kind in ("dir", "d", "directory"):
+                allow_dir(value)
+                print(f"  ✓ 已授权目录: {value}")
+            elif kind in ("tool", "t"):
+                allow_tool(value)
+                print(f"  ✓ 已授权工具: {value}")
+            else:
+                print(f"  ✗ 未知类型 '{kind}'，可选: file / dir / tool")
+            return
+
+        # ── revoke ─────────────────────────────────────────────────────────
+        if sub in ("revoke", "deny", "remove"):
+            if len(parts) < 4:
+                print("  用法: /permissions revoke <file|dir|tool> <路径或工具名>")
+                return
+            kind = parts[2].lower()
+            value = parts[3].strip()
+            if kind in ("file", "f"):
+                ok = revoke_file(value)
+            elif kind in ("dir", "d", "directory"):
+                ok = revoke_dir(value)
+            elif kind in ("tool", "t"):
+                ok = revoke_tool(value)
+            else:
+                print(f"  ✗ 未知类型 '{kind}'")
+                return
+            print(f"  {'✓ 已撤销' if ok else '✗ 未找到对应权限'}: {value}")
+            return
+
+        # ── clear ──────────────────────────────────────────────────────────
+        if sub == "clear":
+            clear_all()
+            print("  ✓ 已清空所有会话权限")
+            return
+
+        # ── help ───────────────────────────────────────────────────────────
+        print("\n  用法:")
+        print("    /permissions show                        — 查看当前权限状态")
+        print("    /permissions allow file <路径>           — 授权某个文件（本会话）")
+        print("    /permissions allow dir  <目录>           — 授权某个目录（本会话）")
+        print("    /permissions allow tool <工具名>         — 授权某个工具（本会话）")
+        print("    /permissions revoke file|dir|tool <值>  — 撤销某条权限")
+        print("    /permissions clear                       — 清空所有会话权限")
+        print()

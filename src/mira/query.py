@@ -647,29 +647,43 @@ class QueryEngine:
     # ── 交互模式 REPL ─────────────────────────────────────────────────────────
 
     def _print_banner(self) -> None:
-        """打印启动 ASCII art 大字 Logo"""
+        """打印启动 Logo + 信息面板"""
         from mira import __version__
         cwd = os.getcwd()
         W = 54
 
-        # 5 行高的 ASCII art "MIRA"（figlet Standard 风格）
-        _ART = [
-            r" __  __  ___  ____      _   ",
-            r"|  \/  ||_ _||  _ \    / \  ",
-            r"| |\/| | | | | |_) |  / _ \ ",
-            r"| |  | | | | |  _ <  / ___ \ ",
-            r"|_|  |_||___|_| \_\/_/   \_\ ",
+        # 左侧：蝴蝶 M 符号（像素艺术，由 icon-512 采样生成），右侧：品牌文字
+        _SYM = [
+            r"     ▄▄▄▄     ▄▄▄▄    ",
+            r"    ██▀▀██▄ ▄██▀▀█▀   ",
+            r" ████▄   ▀███▀  ▄████ ",
+            r"▄█▀ ▀█▄  ▄███  ▄█▀  ██",
+            r" █   ▀█▄▄█▀▀██▄█▀   ██",
+            r" █    ▀██▀  ▀██▀    ██",
+            r" █    ▄██▄    ██    ██",
+            r"▀█   ▄█▀▀█▄    ██   ██",
+            r" █  ▄█▀  ▀██▄   ██  █▀",
+            r" ████▀     ▀██▄▄▄████ ",
+            r"  ▀▀         ▀▀▀▀▀▀▀  ",
         ]
+        _RIGHT = [
+            "",
+            "",
+            "",
+            f"   {_bold(_cyan('M  I  R  A'))}",
+            f"   {_gray('AI  Coding  Assistant')}",
+            f"   {_dim('v' + __version__)}",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+        sym_clrs = [_cyan, _cyan, _cyan, _blue, _blue, _blue, _blue, _blue, _blue, _cyan, _cyan]
 
         print()
-        # 渐变色：顶部亮青 → 底部蓝
-        color_fns = [_cyan, _cyan, _blue, _blue, _blue]
-        for cfn, line in zip(color_fns, _ART):
-            print("  " + cfn(_bold(line)))
-        print()
-        sub_pad = (W - 23) // 2
-        sub_pad = max(sub_pad, 0)
-        print("  " + _gray("─" * sub_pad) + " " + _bold(_cyan("A I  C O D I N G  A S S I S T A N T")) + " " + _gray("─" * sub_pad))
+        for sym, clr, right in zip(_SYM, sym_clrs, _RIGHT):
+            print("  " + clr(_bold(sym)) + right)
         print()
         sep = "  " + _gray("─" * W)
         print(sep)
@@ -689,6 +703,8 @@ class QueryEngine:
     async def _run_interactive(self):
         self._print_banner()
 
+        _last_ctrl_c: float = 0.0
+
         while True:
             try:
                 # 提示符：显示当前目录的最后一段 + 轮次
@@ -697,6 +713,7 @@ class QueryEngine:
                 count_hint = _gray(f"[{msg_count}]") if msg_count > 0 else ""
                 prompt = f"\n{_gray(cwd_short)}{count_hint} {_cyan('❯')} "
                 user_input = input(prompt).strip()
+                _last_ctrl_c = 0.0  # 成功读取输入后重置
                 # 支持 \ 续行
                 while user_input.endswith('\\'):
                     user_input = user_input[:-1]
@@ -718,7 +735,12 @@ class QueryEngine:
                     print(_gray(f"  ⏱ {elapsed:.1f}s"))
 
             except KeyboardInterrupt:
-                print(f"\n  {_dim('Ctrl+C — 使用 /exit 退出，/clear 清空历史')}")
+                now = time.monotonic()
+                if now - _last_ctrl_c < 2.0:
+                    print("\n再见！")
+                    raise SystemExit(0)
+                _last_ctrl_c = now
+                print(f"\n  {_dim('再按一次 Ctrl+C 退出，或输入 /exit')}")
             except EOFError:
                 break
 

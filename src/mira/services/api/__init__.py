@@ -17,19 +17,6 @@ except ImportError:
     pass
 
 
-# ─── 各提供商 base_url ────────────────────────────────────────────────────────
-
-_PROVIDER_BASE_URLS = {
-    "openai":    "https://api.openai.com/v1",
-    "deepseek":  "https://api.deepseek.com/v1",
-    "zhipu":     "https://open.bigmodel.cn/api/paas/v4",
-    "longcat":   "https://api.longcat.chat/openai/v1",
-    "doubao":    "https://ark.cn-beijing.volces.com/api/v3",
-    "moonshot":  "https://api.moonshot.cn/v1",
-    "minimax":   "https://api.minimax.chat/v1",
-}
-
-
 # ─── 工厂函数 ─────────────────────────────────────────────────────────────────
 
 def create_api_client(provider: str, config: dict) -> BaseAPIClient:
@@ -48,10 +35,16 @@ def create_api_client(provider: str, config: dict) -> BaseAPIClient:
         return _GoogleClient(config)
 
     # 所有 OpenAI 兼容提供商
+    # base_url 优先级：用户传入 > PROVIDER_DEFAULTS > 兜底
+    from mira.utils.config import PROVIDER_DEFAULTS
+    pdef = PROVIDER_DEFAULTS.get(provider, {})
     base_url = (
-        config.get("base_url")                      # 用户自定义优先
-        or _PROVIDER_BASE_URLS.get(provider)        # 内置默认
-        or "https://api.openai.com/v1"              # 最终兜底
+        config.get("base_url")
+        or pdef.get("base_url")
+        or "https://api.openai.com/v1"
     )
     merged = {**config, "base_url": base_url}
+    # 部分提供商使用非标准 chat endpoint（如 MiniMax、ERNIE、Spark）
+    if "chat_url" not in merged and pdef.get("chat_url"):
+        merged["chat_url"] = pdef["chat_url"]
     return OpenAICompatibleClient(merged)
