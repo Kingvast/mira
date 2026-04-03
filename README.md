@@ -683,12 +683,21 @@ pip install pyinstaller>=6.0.0
 ### 构建命令
 
 ```bash
-# 打包
+# 打包（自动检测当前系统）
 python build_dist.py
+
+# 明确指定目标平台（必须与当前运行系统一致）
+python build_dist.py --platform windows
+python build_dist.py --platform macos
+python build_dist.py --platform linux
 
 # 清理旧产物后打包
 python build_dist.py --clean
+python build_dist.py --platform linux --clean
 ```
+
+> **注意**：PyInstaller 不支持交叉编译，`--platform` 必须与当前运行系统匹配。  
+> 若指定平台与当前系统不符，脚本会输出错误并退出，不会执行打包。
 
 ---
 

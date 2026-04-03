@@ -19,10 +19,17 @@ Mira 打包脚本
 
 用法
 ----
-  python build_dist.py           # 打包
-  python build_dist.py --clean   # 清理后打包
+  python build_dist.py                      # 打包（自动检测当前系统）
+  python build_dist.py --platform windows   # 明确指定平台（必须与当前系统一致）
+  python build_dist.py --platform macos
+  python build_dist.py --platform linux
+  python build_dist.py --clean              # 清理后打包
+  python build_dist.py --platform linux --clean
+
+注意：PyInstaller 不支持交叉编译，--platform 必须与当前运行系统匹配。
 """
 
+import argparse
 import os
 import platform
 import shutil
@@ -33,13 +40,66 @@ from pathlib import Path
 ROOT      = Path(__file__).resolve().parent
 DIST_DIR  = ROOT / "dist"
 BUILD_DIR = ROOT / "build"
-SYSTEM    = platform.system()   # Windows / Darwin / Linux
 
 sys.path.insert(0, str(ROOT / "src"))
 try:
     from mira import __version__
 except ImportError:
     __version__ = "0.0.0"
+
+# 平台别名映射 → platform.system() 的值
+_PLATFORM_MAP = {
+    "windows": "Windows",
+    "win":     "Windows",
+    "macos":   "Darwin",
+    "mac":     "Darwin",
+    "darwin":  "Darwin",
+    "linux":   "Linux",
+}
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Mira 打包脚本",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--platform", "-p",
+        metavar="PLATFORM",
+        help="目标平台：windows / macos / linux（必须与当前运行系统一致）",
+    )
+    parser.add_argument(
+        "--clean", "-c",
+        action="store_true",
+        help="打包前清理旧产物（dist/ build/ *.spec）",
+    )
+    return parser.parse_args()
+
+
+def resolve_platform(arg: str | None) -> str:
+    """返回规范化的 platform.system() 值，并校验与当前系统是否匹配。"""
+    current = platform.system()   # Windows / Darwin / Linux
+
+    if arg is None:
+        return current
+
+    normalized = _PLATFORM_MAP.get(arg.lower())
+    if normalized is None:
+        valid = "windows / macos / linux"
+        print(f"错误：未知平台 '{arg}'，可选值：{valid}", file=sys.stderr)
+        sys.exit(1)
+
+    if normalized != current:
+        friendly = {"Windows": "Windows", "Darwin": "macOS", "Linux": "Linux"}
+        print(
+            f"错误：指定了 --platform {arg}（{friendly[normalized]}），"
+            f"但当前运行系统是 {friendly.get(current, current)}。\n"
+            f"PyInstaller 不支持交叉编译，请在目标系统上执行打包。",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    return normalized
 
 
 def clean():
@@ -52,7 +112,7 @@ def clean():
         print(f"  删除: {spec}")
 
 
-def build():
+def build(system: str):
     entry  = ROOT / "src" / "mira" / "main.py"
     static = ROOT / "src" / "mira" / "web" / "static"
 
@@ -86,9 +146,9 @@ def build():
     ]
 
     # 图标
-    if SYSTEM == "Windows":
+    if system == "Windows":
         icon = ROOT / "assets" / "icon.ico"
-    elif SYSTEM == "Darwin":
+    elif system == "Darwin":
         icon = ROOT / "assets" / "icon.icns"
     else:
         icon = ROOT / "assets" / "icon-256.png"
@@ -97,18 +157,19 @@ def build():
 
     cmd.append(str(entry))
 
-    print(f"▶  PyInstaller — {SYSTEM} v{__version__}")
+    friendly = {"Windows": "Windows", "Darwin": "macOS", "Linux": "Linux"}
+    print(f"▶  PyInstaller — {friendly.get(system, system)} v{__version__}")
     subprocess.run(cmd, check=True)
 
-    # 删除 PyInstaller 自动生成的 .spec 文件（由 build_dist.py 管理，无需保留）
+    # 删除 PyInstaller 自动生成的 .spec 文件
     for spec in ROOT.glob("*.spec"):
         spec.unlink()
 
     mira_dir = DIST_DIR / "mira"
-    _write_web_launcher(mira_dir)
-    _write_uninstall(mira_dir)
+    _write_web_launcher(mira_dir, system)
+    _write_uninstall(mira_dir, system)
 
-    exe = mira_dir / ("mira.exe" if SYSTEM == "Windows" else "mira")
+    exe = mira_dir / ("mira.exe" if system == "Windows" else "mira")
     print(f"\n✅  {exe}")
     print(f"    Web UI 启动脚本: {mira_dir}")
     print(f"    卸载脚本:        {mira_dir}")
@@ -116,9 +177,8 @@ def build():
 
 # ── Web UI 无控制台启动脚本 ────────────────────────────────────────────────────
 
-def _write_web_launcher(dest: Path):
-    if SYSTEM == "Windows":
-        # VBScript：用 wscript.exe 以隐藏窗口方式启动 mira.exe --web
+def _write_web_launcher(dest: Path, system: str):
+    if system == "Windows":
         vbs = "\r\n".join([
             'Dim fso, wsh, dir, exe',
             'Set fso = CreateObject("Scripting.FileSystemObject")',
@@ -140,9 +200,8 @@ def _write_web_launcher(dest: Path):
 
 # ── 卸载脚本 ──────────────────────────────────────────────────────────────────
 
-def _write_uninstall(dest: Path):
-    if SYSTEM == "Windows":
-        # 通过 PowerShell 延迟删除自身目录（batch 无法删除正在运行的目录）
+def _write_uninstall(dest: Path, system: str):
+    if system == "Windows":
         bat = "\r\n".join([
             "@echo off",
             "echo 正在卸载 Mira...",
@@ -169,6 +228,8 @@ def _write_uninstall(dest: Path):
 
 
 if __name__ == "__main__":
-    if "--clean" in sys.argv:
+    args = parse_args()
+    system = resolve_platform(args.platform)
+    if args.clean:
         clean()
-    build()
+    build(system)
