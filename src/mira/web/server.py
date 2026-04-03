@@ -524,6 +524,9 @@ class ChatSession:
         # 权限确认用的 asyncio 事件
         self._perm_event: asyncio.Event = asyncio.Event()
         self._perm_result: bool = False
+        # AskUserQuestion 用的 asyncio 事件
+        self._ask_event: asyncio.Event = asyncio.Event()
+        self._ask_result: str = ""
         # 当前正在运行的 AI 生成 Task（用于中断）
         self._gen_task: Optional[asyncio.Task] = None
 
@@ -549,6 +552,22 @@ class ChatSession:
         except asyncio.TimeoutError:
             return False
         return self._perm_result
+
+    # ── AskUserQuestion（通过 WebSocket 发给浏览器）──────────────────────────
+
+    async def _web_ask(self, question: str, options: list) -> str:
+        """向浏览器发送提问请求，等待用户在 Web 端回复"""
+        self._ask_event.clear()
+        await self.send({
+            "type": "ask_user",
+            "question": question,
+            "options": options,
+        })
+        try:
+            await asyncio.wait_for(self._ask_event.wait(), timeout=300.0)
+        except asyncio.TimeoutError:
+            return "(超时未回复)"
+        return self._ask_result
 
     # ── 会话自动保存 ─────────────────────────────────────────────────────────
 
@@ -587,6 +606,7 @@ class ChatSession:
                 model=model or get_default_model(provider, config),
                 skip_permissions=config.get("dangerously_skip_permissions", False),
                 confirm_fn=self._web_confirm,
+                ask_fn=self._web_ask,
             )
             # 从配置文件恢复额外目录
             saved_dirs = config.get("extra_dirs", [])
@@ -636,6 +656,12 @@ class ChatSession:
         if msg_type == "permission_response":
             self._perm_result = bool(data.get("approved", False))
             self._perm_event.set()
+            return
+
+        # ── AskUserQuestion 回复 ──────────────────────────────────────────────
+        if msg_type == "ask_response":
+            self._ask_result = data.get("answer", "")
+            self._ask_event.set()
             return
 
         # ── 首次初始化（连接时）─────────────────────────────────────────────

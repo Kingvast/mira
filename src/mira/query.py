@@ -404,13 +404,16 @@ class QueryEngine:
     """AI 代码助手查询引擎（Agentic Loop）"""
 
     def __init__(self, config: dict, provider: str = None, model: str = None,
-                 skip_permissions: bool = False, confirm_fn=None):
+                 skip_permissions: bool = False, confirm_fn=None, ask_fn=None):
         self.config = config
         self.provider = provider or config.get("default_provider", "deepseek")
         self.skip_permissions = skip_permissions or config.get("dangerously_skip_permissions", False)
         # confirm_fn: async callable(tool_name, args, prompt) -> bool
         # None = CLI sync fallback
         self._confirm_fn = confirm_fn
+        # ask_fn: async callable(question, options) -> str
+        # None = CLI input() fallback
+        self._ask_fn = ask_fn
 
         api_key = get_api_key(self.provider, config)
         if not api_key:

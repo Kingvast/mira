@@ -34,6 +34,28 @@ class AskUserQuestionTool(Tool):
             "required": ["question"],
         }
 
+    async def execute_async(self, args: Dict[str, Any], callback: Callable,
+                             engine=None) -> str:
+        question = args.get("question", "")
+        options = args.get("options", [])
+        # Web 模式：通过 WebSocket 发给浏览器等待回复
+        if engine is not None and getattr(engine, "_ask_fn", None):
+            return await engine._ask_fn(question, options)
+        # CLI 降级：在终端交互
+        return await asyncio.to_thread(self._cli_ask, question, options)
+
+    def _cli_ask(self, question: str, options: list) -> str:
+        print(f"\n  ❓ {question}")
+        if options:
+            for i, opt in enumerate(options, 1):
+                print(f"     {i}. {opt}")
+            print()
+        try:
+            answer = input("  → ").strip()
+            return answer if answer else "(用户未输入)"
+        except (EOFError, KeyboardInterrupt):
+            return "(用户中断)"
+
     def execute(self, args: Dict[str, Any]) -> str:
         question = args.get("question", "")
         options = args.get("options", [])

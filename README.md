@@ -4,7 +4,7 @@
 
 # Mira — AI 智能编程助手
 
-> v1.1.0 · 支持 16 大 AI 提供商的 CLI + Web UI 智能编程助手，内置 Agentic Loop 自动调用工具完成任务。
+> v1.2.0 · 支持 16 大 AI 提供商的 CLI + Web UI 智能编程助手，内置 Agentic Loop 自动调用工具完成任务。
 
 ---
 
@@ -324,7 +324,7 @@ AI 在 Agentic Loop 中可调用以下工具：
 
 | 工具 | 功能 |
 |------|------|
-| `AskUserQuestionTool` | 向用户提问（暂停等待输入） |
+| `AskUserQuestionTool` | 向用户提问（CLI 终端输入；Web UI 内联问答面板） |
 | `SleepTool` | 等待指定时间（0.1~60s） |
 | `EnterPlanModeTool` | 进入计划模式 |
 | `ExitPlanModeTool` | 退出计划模式 |
@@ -501,6 +501,8 @@ mira --web
 - 扩展思考块可折叠展示
 - 工具执行状态卡片（显示工具名、参数、结果）
 - AI 消息操作栏：复制、重试
+- AI 回复含编号列表时自动渲染快捷选项按钮，点击直接回复
+- `AskUserQuestion` 提问内联显示于聊天区，可在 Web 端直接输入回答
 
 **主题**：暗黑 / 暗灰 / 深海 / 摩卡 / 亮色（共 5 套）
 
@@ -687,6 +689,23 @@ python build_dist.py
 # 清理旧产物后打包
 python build_dist.py --clean
 ```
+
+---
+
+## 更新日志
+
+### v1.2.0
+
+**修复**
+- 模型列表被旧配置文件覆盖问题：`provider_models` 不再持久化到 `config.json`，始终以内置 `PROVIDER_DEFAULTS` 为准，彻底解决指定模型后该提供商其他模型消失的问题
+
+**Web UI 改进**
+- AI 回复含编号列表时，自动在消息底部渲染可点击的快捷选项按钮，点击即发送对应序号
+- `AskUserQuestion` 工具在 Web 模式下不再阻塞终端，改为在聊天区内联展示问答面板（含选项按钮 + 自由输入框），用户可直接在浏览器中回答
+
+### v1.1.0
+
+- 初始版本，支持 16 大 AI 提供商 CLI + Web UI
 
 ---
 
