@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mira-ai"
-version = "2.2.0"
+dynamic = ["version"]
 description = "Mira — AI 智能编程助手，支持 9 大 AI 提供商的 CLI + Web UI"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" },
+    { name = "Charon", email = "kingvast.wh@gmail.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -44,6 +44,7 @@ web = [
     "uvicorn[standard]>=0.27.0",
     "websockets>=12.0",
     "aiofiles>=23.0.0",
+    "python-multipart>=0.0.6",
 ]
 dev = [
     "pytest>=7.0.0",
@@ -59,3 +60,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "mira.web" = ["static/*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "mira.__version__"}

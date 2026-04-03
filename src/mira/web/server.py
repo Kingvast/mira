@@ -38,10 +38,11 @@ from mira.utils.sessions import (
     list_sessions, delete_session, load_session, save_session, new_session_id,
 )
 from mira.utils.memory import load_memory, save_memory, get_memory_path
+from mira import __version__
 
 STATIC_DIR = Path(__file__).parent / "static"
 
-app = FastAPI(title="Mira", version="2.1.0", docs_url=None)
+app = FastAPI(title="Mira", version=__version__, docs_url=None)
 
 app.add_middleware(
     CORSMiddleware,
