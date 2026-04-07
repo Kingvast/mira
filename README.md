@@ -4,7 +4,7 @@
 
 # Mira — AI 智能编程助手
 
-> v1.2.0 · 支持 16 大 AI 提供商的 CLI + Web UI 智能编程助手，内置 Agentic Loop 自动调用工具完成任务。
+> v1.3.0 · 支持 16 大 AI 提供商的 CLI + Web UI 智能编程助手，内置 Agentic Loop 自动调用工具完成任务。
 
 ---
 
@@ -33,8 +33,8 @@
 | **双模式** | CLI 交互终端 + Web UI（FastAPI + WebSocket 实时流式） |
 | **Agentic Loop** | AI 自主连续调用工具直至任务完成 |
 | **多提供商** | 16 大 AI 提供商 + 任意 OpenAI 兼容接口 |
-| **工具集** | 42 个内置工具：文件、命令、Git、搜索、HTTP、压缩包、进程、哈希、Base64、时间 |
-| **CLI 命令** | 26 个斜杠命令覆盖会话、模型、文件、任务、记忆等 |
+| **工具集** | 52 个内置工具：文件、命令、Git、搜索、HTTP、SQLite、正则、代码执行、Docker、Jupyter、Lint/Test/Format 等 |
+| **CLI 命令** | 33 个斜杠命令覆盖会话、模型、文件、任务、记忆、代码执行、搜索等 |
 | **会话持久化** | 对话自动保存，随时恢复历史会话 |
 | **撤销** | `/undo` 或 `Ctrl+Z` 撤销上一轮 AI 的所有文件修改 |
 | **计划模式** | `/plan` 进入只规划不执行的模式，确认后再执行 |
@@ -252,11 +252,28 @@ Ctrl+C         # 连按两次（2 秒内）退出；单次仅显示提示
 | `/permissions revoke file\|dir\|tool <值>` | 撤销某条权限 |
 | `/permissions clear` | 清空所有会话权限 |
 
+### 代码与开发
+
+| 命令 | 说明 |
+|------|------|
+| `/run <语言> <代码>` | 直接执行代码片段（Python/JS/Go/Rust 等 13 种语言） |
+| `/lint [文件/目录]` | 静态检查代码（自动检测 eslint/pylint/ruff 等） |
+| `/test [路径]` | 运行测试（自动检测 pytest/jest/cargo test 等） |
+| `/format [文件/目录]` | 格式化代码（自动检测 prettier/black/gofmt 等） |
+
+### 对话工具
+
+| 命令 | 说明 |
+|------|------|
+| `/find <关键词>` | 在对话历史中搜索包含关键词的消息 |
+| `/tokens` | 按消息逐条显示 Token 占用明细表 |
+| `/snip` | 从历史中裁剪掉工具调用结果（不调用 AI，减少上下文） |
+
 ### 其他
 
 | 命令 | 说明 |
 |------|------|
-| `/doctor` | 检查运行环境 |
+| `/doctor` | 检查运行环境（含 Node/Go/Rust/Ruby/Docker 等） |
 | `/version` | 显示版本信息 |
 | `/help` | 显示帮助 |
 | `/exit` | 退出 |
@@ -358,6 +375,46 @@ AI 在 Agentic Loop 中可调用以下工具：
 | `DateTimeTool` | 获取当前日期时间，支持时区和格式化、Unix 时间戳转换 |
 | `HashTool` | 计算文件或字符串的哈希摘要（MD5/SHA1/SHA256/SHA512） |
 | `Base64Tool` | Base64 编码/解码（支持文件和文本，可保存二进制输出） |
+
+### 数据库（1个）
+
+| 工具 | 功能 |
+|------|------|
+| `SQLiteTool` | SQLite 数据库操作：执行查询、查看表结构、导出 CSV |
+
+### 正则表达式（1个）
+
+| 工具 | 功能 |
+|------|------|
+| `RegexTool` | 正则表达式测试：匹配、提取捕获组、替换、分割、验证 |
+
+### 代码执行（1个）
+
+| 工具 | 功能 |
+|------|------|
+| `CodeRunnerTool` | 多语言代码片段直接执行（13种语言：Python/JS/TS/Go/Rust/Ruby/Java/C/C++/PHP/R/Lua/Bash） |
+
+### Jupyter Notebook（2个）
+
+| 工具 | 功能 |
+|------|------|
+| `NotebookReadTool` | 读取 .ipynb 文件，展示各 cell 类型与输出结果 |
+| `NotebookEditTool` | 编辑 Notebook：替换 cell 内容、插入/删除 cell、清除输出、设置元数据 |
+
+### Docker（1个）
+
+| 工具 | 功能 |
+|------|------|
+| `DockerTool` | Docker 全功能操作：容器生命周期管理、镜像构建拉取、compose 编排、日志查看、端口映射等（20个操作） |
+
+### 开发工具（4个）
+
+| 工具 | 功能 |
+|------|------|
+| `LintTool` | 代码静态检查：自动检测项目类型，支持 eslint/pylint/flake8/ruff/golangci-lint/clippy 等 |
+| `FormatTool` | 代码格式化：自动检测格式化器，支持 prettier/black/gofmt/rustfmt/clang-format 等 |
+| `TestRunnerTool` | 运行测试套件：自动检测 pytest/jest/mocha/vitest/cargo test/go test 等 |
+| `JQTool` | JSON 数据查询与转换（JQ 风格路径表达式，纯 Python 实现） |
 
 ---
 
@@ -489,22 +546,26 @@ mira --web
 - 技能库：查看和执行内置及自定义技能
 - 工具列表：查看所有可用工具及其说明
 - 记忆编辑器：直接编辑 NOTES.md
+- **对话搜索**（`Ctrl+F`）：实时高亮搜索聊天记录，点击结果跳转
 
 **输入区**
-- `/` 触发斜杠命令下拉补全（Tab/方向键选择）
+- `/` 触发斜杠命令下拉补全（Tab/方向键选择，支持 31 个命令）
 - `Ctrl+U` 上传图片或文件
 - 拖拽文件到输入框上传
 - 支持粘贴剪贴板图片（Ctrl+V）
 
 **消息区**
-- 实时流式输出
+- 实时流式输出，迭代计数器显示当前第几步（`Step N`）
 - 扩展思考块可折叠展示
 - 工具执行状态卡片（显示工具名、参数、结果）
+- 工具结果一键复制按钮
 - AI 消息操作栏：复制、重试
 - AI 回复含编号列表时自动渲染快捷选项按钮，点击直接回复
 - `AskUserQuestion` 提问内联显示于聊天区，可在 Web 端直接输入回答
 
-**主题**：暗黑 / 暗灰 / 深海 / 摩卡 / 亮色（共 5 套）
+**命令面板**（`Ctrl+P`）：统一搜索框，可快速执行斜杠命令、调用工具、触发快捷动作
+
+**主题**：暗黑 / 暗灰 / 深海 / 摩卡 / 亮色 / **玫瑰**（共 6 套）
 
 **设置面板**（`Ctrl+E` 打开）
 - 切换提供商和模型
@@ -522,6 +583,8 @@ mira --web
 | `Ctrl+U` | 上传文件/图片 |
 | `Ctrl+E` | 打开设置面板 |
 | `Ctrl+Z` | 快速撤销上一轮文件修改 |
+| `Ctrl+P` | 打开命令面板（Command Palette） |
+| `Ctrl+F` | 打开对话搜索面板 |
 | `/` + `Tab` / `↑↓` | 斜杠命令补全 |
 
 ---
@@ -702,6 +765,38 @@ python build_dist.py --platform linux --clean
 ---
 
 ## 更新日志
+
+### v1.3.0
+
+**新增工具（+10个，共52个）**
+- `CodeRunnerTool`：多语言代码片段直接执行，支持 Python/JavaScript/TypeScript/Go/Rust/Ruby/Java/C/C++/PHP/R/Lua/Bash 共13种语言
+- `NotebookReadTool` / `NotebookEditTool`：Jupyter Notebook 读写，支持查看cell输出、替换/插入/删除cell、清除输出
+- `DockerTool`：Docker 全功能操作（20个操作），含容器生命周期、镜像管理、compose 编排、日志查看
+- `SQLiteTool`：SQLite 数据库查询、表结构浏览、CSV 导出
+- `RegexTool`：正则表达式测试、提取捕获组、替换、分割、格式验证
+- `LintTool`：代码静态检查，自动检测 eslint/pylint/flake8/ruff/golangci-lint/clippy 等
+- `FormatTool`：代码格式化，自动检测 prettier/black/gofmt/rustfmt/clang-format 等
+- `TestRunnerTool`：运行测试套件，自动检测 pytest/jest/mocha/vitest/cargo test/go test
+- `JQTool`：JQ 风格 JSON 数据查询与转换（纯 Python 实现）
+
+**新增命令（+7个，共33个）**
+- `/run <语言> <代码>`：直接执行代码片段
+- `/lint`：静态检查代码
+- `/test`：运行测试套件
+- `/format`：格式化代码
+- `/find <关键词>`：在对话历史中搜索
+- `/tokens`：逐消息 Token 占用明细
+- `/snip`：裁剪工具调用结果，减小上下文体积
+
+**Web UI 增强**
+- 命令面板（`Ctrl+P`）：统一搜索入口，快速执行命令/工具/快捷动作
+- 对话搜索面板（`Ctrl+F`）：实时高亮搜索，点击跳转
+- 迭代计数徽章：实时显示当前 Agentic Loop 执行到第几步
+- 工具结果复制按钮
+- 顶栏新增「✂ 裁剪」快捷按钮
+- 新增玫瑰（Rose）主题，共 6 套主题
+- 斜杠命令补全扩展至 31 个条目
+- `/doctor` 增加 Node/Ruby/Go/Rust/R/Lua/Docker 环境检测
 
 ### v1.2.0
 

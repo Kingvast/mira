@@ -25,50 +25,54 @@ from mira.tools.git_tools import (
 )
 from mira.tools.system_tools import (
     HttpRequestTool, ArchiveTool, EnvTool, ProcessTool,
-    DateTimeTool, HashTool, Base64Tool,
+    DateTimeTool, HashTool, Base64Tool, SQLiteTool, RegexTool,
 )
+from mira.tools.code_runner import CodeRunnerTool
+from mira.tools.notebook_tool import NotebookReadTool, NotebookEditTool
+from mira.tools.docker_tool import DockerTool
+from mira.tools.dev_tools import LintTool, FormatTool, TestRunnerTool, JQTool
 
 
 def get_tools():
     """获取所有已注册的工具"""
     return [
-        # ── 文件读写 ──────────────────────────────────────────
+        # 文件读写
         FileReadTool(),
         FileEditTool(),
         FileWriteTool(),
         FileAppendTool(),
-        # ── 目录与文件系统 ─────────────────────────────────────
+        # 目录与文件系统
         LSTool(),
         MkdirTool(),
         DeleteTool(),
         MoveTool(),
         CopyTool(),
-        # ── 搜索与比较 ─────────────────────────────────────────
+        # 搜索与比较
         GlobTool(),
         GrepTool(),
         DiffTool(),
-        # ── 命令执行 ──────────────────────────────────────────
+        # 命令执行
         BashTool(),
         PowerShellTool(),
-        # ── 网络 ─────────────────────────────────────────────
+        # 网络
         WebSearchTool(),
         WebFetchTool(),
-        # ── 任务与笔记 ─────────────────────────────────────────
+        # 任务与笔记
         TodoWriteTool(),
         NotesWriteTool(),
-        # ── 交互式 ───────────────────────────────────────────
+        # 交互式
         AskUserQuestionTool(),
         SleepTool(),
         EnterPlanModeTool(),
         ExitPlanModeTool(),
-        # ── 任务管理 ──────────────────────────────────────────
+        # 任务管理
         TaskCreateTool(),
         TaskListTool(),
         TaskGetTool(),
         TaskOutputTool(),
         TaskUpdateTool(),
         TaskStopTool(),
-        # ── Git ──────────────────────────────────────────────
+        # Git
         GitStatusTool(),
         GitDiffTool(),
         GitLogTool(),
@@ -76,7 +80,7 @@ def get_tools():
         GitCommitTool(),
         GitBranchTool(),
         GitPushTool(),
-        # ── 系统工具 ──────────────────────────────────────────
+        # 系统工具
         HttpRequestTool(),
         ArchiveTool(),
         EnvTool(),
@@ -84,6 +88,20 @@ def get_tools():
         DateTimeTool(),
         HashTool(),
         Base64Tool(),
+        SQLiteTool(),
+        RegexTool(),
+        # 代码执行
+        CodeRunnerTool(),
+        # Jupyter Notebook
+        NotebookReadTool(),
+        NotebookEditTool(),
+        # Docker
+        DockerTool(),
+        # 开发工具
+        LintTool(),
+        FormatTool(),
+        TestRunnerTool(),
+        JQTool(),
     ]
 
 

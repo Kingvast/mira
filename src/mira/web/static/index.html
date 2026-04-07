@@ -498,9 +498,41 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
 .slash-item .si-desc{font-size:12px;color:var(--c-text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 消息操作栏 */
 .msg-actions{display:flex;gap:4px;margin-top:4px;opacity:0;transition:opacity .15s}
-.msg.assistant:hover .msg-actions{opacity:1}
+.msg.assistant:hover .msg-actions,.msg.ai:hover .msg-actions{opacity:1}
 .msg-act-btn{background:none;border:1px solid var(--c-border);color:var(--c-text3);font-size:11px;padding:2px 8px;border-radius:20px;cursor:pointer;transition:all .15s}
 .msg-act-btn:hover{background:var(--c-surface3);color:var(--c-text);border-color:var(--c-border2)}
+/* 工具结果复制按钮 */
+.tool-result-copy{position:absolute;right:6px;top:4px;background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:10px;padding:2px 5px;border-radius:3px;opacity:0;transition:all .12s}
+.tool-sec:hover .tool-result-copy{opacity:1}
+.tool-result-copy:hover{color:var(--c-text);background:var(--c-surface3)}
+/* 命令面板条目 */
+.palette-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r-sm);cursor:pointer;transition:background .12s}
+.palette-item:hover,.palette-item.active{background:var(--c-accent-bg)}
+.palette-item .pi-icon{font-size:14px;width:22px;text-align:center;flex-shrink:0}
+.palette-item .pi-name{font-family:var(--mono);font-size:12px;color:var(--c-accent2);min-width:100px}
+.palette-item .pi-desc{font-size:11px;color:var(--c-text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.palette-item .pi-tag{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--c-surface3);color:var(--c-text3);flex-shrink:0;margin-left:auto}
+/* 搜索结果条目 */
+.search-result{padding:7px 10px;border-radius:var(--r-sm);cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:all .12s}
+.search-result:hover{background:var(--c-surface2);border-color:var(--c-border)}
+.search-result .sr-role{font-size:10px;color:var(--c-text3);margin-bottom:3px}
+.search-result .sr-text{font-size:12px;color:var(--c-text);line-height:1.5}
+.search-result .sr-hl{background:rgba(124,106,247,.25);color:var(--c-accent2);padding:0 2px;border-radius:2px}
+/* 代码块运行按钮 */
+.code-run-btn{background:var(--c-green-bg);border:1px solid rgba(74,222,128,.3);color:var(--c-green);cursor:pointer;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;transition:all .15s}
+.code-run-btn:hover{background:rgba(74,222,128,.2)}
+/* Rose 主题 */
+:root[data-theme="rose"]{
+  --c-bg:#1a0f14;--c-surface:#220f18;--c-surface2:#2c1620;--c-surface3:#3a1e2a;
+  --c-border:#5a2840;--c-border2:#7a3858;
+  --c-text:#f0c8d8;--c-text2:#b07888;--c-text3:#705060;
+  --c-accent:#e0408a;--c-accent2:#f060a0;
+  --c-accent-bg:rgba(224,64,138,.1);--c-accent-border:rgba(224,64,138,.35);
+  --c-green:#60c080;--c-green-bg:rgba(96,192,128,.1);
+  --c-red:#f06060;--c-red-bg:rgba(240,96,96,.1);
+  --c-yellow:#f0b040;--c-yellow-bg:rgba(240,176,64,.1);
+  --c-blue:#80a0f0;
+}
 </style>
 </head>
 <body>
@@ -512,16 +544,17 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
       <div class="sb-brand-icon"><img src="/static/logo-icon.png" alt="Mira"></div>
       <div>
         <div class="sb-brand-name">Mira</div>
-        <div class="sb-brand-ver">v2.2 · Skills · MCP · 多目录 · 记忆</div>
+        <div class="sb-brand-ver">v1.3.0 · 52工具 · MCP · Skills · 记忆</div>
       </div>
     </div>
 
     <div class="sb-tabs">
-      <button class="sb-tab on" onclick="showPanel('sessions')">💬</button>
-      <button class="sb-tab" onclick="showPanel('files')">📁</button>
-      <button class="sb-tab" onclick="showPanel('skills')">✨</button>
-      <button class="sb-tab" onclick="showPanel('tools')">🔧</button>
+      <button class="sb-tab on" onclick="showPanel('sessions')" title="会话历史">💬</button>
+      <button class="sb-tab" onclick="showPanel('files')" title="文件浏览器">📁</button>
+      <button class="sb-tab" onclick="showPanel('skills')" title="技能">✨</button>
+      <button class="sb-tab" onclick="showPanel('tools')" title="工具列表 (52个)">🔧</button>
       <button class="sb-tab" onclick="showPanel('memory')" title="项目记忆 NOTES.md">📔</button>
+      <button class="sb-tab" onclick="showPanel('search')" title="搜索对话 (Ctrl+F)">🔍</button>
     </div>
 
     <!-- Sessions -->
@@ -592,6 +625,17 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
       </div>
     </div>
 
+    <!-- Search panel -->
+    <div class="sb-panel" id="panel-search">
+      <div class="tl-search" style="display:flex;gap:5px;padding:8px 10px">
+        <input id="search-input" placeholder="搜索对话内容…" oninput="searchChat(this.value)" style="flex:1;background:var(--c-surface2);border:1px solid var(--c-border);color:var(--c-text);padding:6px 10px;border-radius:var(--r-sm);font-size:12px;outline:none">
+        <button class="fb-nav-btn" onclick="searchChat(document.getElementById('search-input').value)" title="搜索">⏎</button>
+      </div>
+      <div id="search-results" class="tl-list" style="padding:6px 8px">
+        <div class="sess-empty" style="padding:20px 12px">在当前对话中搜索</div>
+      </div>
+    </div>
+
     <div class="sb-foot">
       <div class="cwd-row">
         <span class="cwd-label">CWD</span>
@@ -625,7 +669,9 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
         <span style="font-size:9px;font-family:var(--mono);color:var(--c-text3)" id="ctx-pct">0%</span>
       </div>
       <span class="tok-badge" id="tok-badge" title="token 用量（↑输入 ↓输出）及费用">—</span>
-      <button class="tb-btn" onclick="doCompact()" title="压缩上下文历史">⊡ 压缩</button>
+      <button class="tb-btn" onclick="doCompact()" title="AI压缩上下文历史（生成摘要）">⊡ 压缩</button>
+      <button class="tb-btn" onclick="doSnip()" title="快速裁剪：删除旧工具结果消息（无需AI，速度更快）" style="font-size:11px">✂ 裁剪</button>
+      <span id="iter-badge" style="display:none;font-size:10px;font-family:var(--mono);color:var(--c-yellow);padding:3px 8px;background:var(--c-yellow-bg);border:1px solid rgba(251,191,36,.3);border-radius:10px" title="当前执行步骤数"></span>
       <button class="tb-btn" id="plan-btn" onclick="togglePlan()" title="计划模式：工具只描述不执行" style="display:none">📋 计划中</button>
       <div class="ws-dot connecting" id="ws-dot" title="连接中"></div>
       <div class="theme-picker" title="切换主题">
@@ -633,8 +679,10 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
         <div class="theme-dot"    data-t="dim"   onclick="setTheme('dim')"   title="暗灰"></div>
         <div class="theme-dot"    data-t="ocean" onclick="setTheme('ocean')" title="深海"></div>
         <div class="theme-dot"    data-t="mocha" onclick="setTheme('mocha')" title="摩卡"></div>
+        <div class="theme-dot"    data-t="rose"  onclick="setTheme('rose')"  title="玫瑰" style="background:#1a0f14;outline:1px solid #e0408a"></div>
         <div class="theme-dot"    data-t="light" onclick="setTheme('light')" title="亮色"></div>
       </div>
+      <button class="tb-btn icon" onclick="openPalette()" title="命令面板 (Ctrl+P)" style="font-size:13px">⌘</button>
       <button class="tb-btn" onclick="openSettings()">⚙ 设置</button>
       <button class="tb-btn icon red" onclick="confirmClear()" title="清空对话">🗑</button>
     </div>
@@ -654,6 +702,8 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
             <span class="wl-sc" title="发送">Enter 发送</span>
             <span class="wl-sc" title="换行">Shift+Enter 换行</span>
             <span class="wl-sc" title="上传文件">Ctrl+U 上传文件</span>
+            <span class="wl-sc" title="命令面板">Ctrl+P 命令面板</span>
+            <span class="wl-sc" title="搜索对话">Ctrl+F 搜索</span>
             <span class="wl-sc" title="斜杠命令">/  斜杠命令</span>
             <span class="wl-sc" title="撤销上一步">Ctrl+Z 撤销</span>
           </div>
@@ -662,9 +712,11 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
             <button class="wl-q" onclick="quickAsk('查看 git 状态，总结最近的修改')">🌿 Git 状态</button>
             <button class="wl-q" onclick="runSkill('commit')">✍ 生成提交消息</button>
             <button class="wl-q" onclick="runSkill('review')">🔍 代码审查</button>
+            <button class="wl-q" onclick="quickAsk('对当前项目运行 lint 检查并修复问题')">✅ Lint 检查</button>
             <button class="wl-q" onclick="quickAsk('帮我写单元测试')">🧪 生成测试</button>
             <button class="wl-q" onclick="quickAsk('搜索最新的 Python 异步编程最佳实践')">🌐 网络搜索</button>
             <button class="wl-q" onclick="quickAsk('查看当前目录所有文件，给出项目概览')">🗂 项目概览</button>
+            <button class="wl-q" onclick="quickAsk('执行 pytest 运行所有测试，报告失败情况')">🔬 运行测试</button>
             <button class="wl-q" onclick="pickSlash('/undo ')">↩ 撤销修改</button>
           </div>
         </div>
@@ -852,6 +904,24 @@ html, body { height: 100%; font-family: var(--font); font-size: 14px; background
   </div>
 </div>
 
+<!-- ════ COMMAND PALETTE ═════════════════════════════════ -->
+<div class="overlay hidden" id="palette-overlay" onclick="if(event.target===this)closeOverlay('palette-overlay')">
+  <div style="background:var(--c-surface);border:1px solid var(--c-border2);border-radius:var(--r-lg);width:560px;max-width:94vw;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.6);animation:mdIn .15s">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--c-border)">
+      <span style="font-size:16px;color:var(--c-text3)">⌘</span>
+      <input id="palette-input" placeholder="搜索命令、工具…" autofocus
+        oninput="filterPalette(this.value)"
+        onkeydown="palettKey(event)"
+        style="flex:1;background:none;border:none;color:var(--c-text);font-size:14px;outline:none">
+      <span style="font-size:10px;color:var(--c-text3);padding:2px 6px;background:var(--c-surface2);border-radius:4px;font-family:var(--mono)">Esc</span>
+    </div>
+    <div id="palette-list" style="max-height:360px;overflow-y:auto;padding:6px"></div>
+    <div style="padding:6px 12px;border-top:1px solid var(--c-border);display:flex;gap:12px;font-size:10px;color:var(--c-text3)">
+      <span>↑↓ 导航</span><span>Enter 执行</span><span>Esc 关闭</span>
+    </div>
+  </div>
+</div>
+
 <!-- ════ IMAGE LIGHTBOX ══════════════════════════════════ -->
 <div id="lightbox" class="hidden" onclick="this.classList.add('hidden')">
   <img id="lightbox-img" src="">
@@ -911,6 +981,7 @@ function dispatch(ev) {
       if(!streaming){ streaming=addMsg('ai','',[]); streamTxt=''; }
       streamTxt+=ev.content; renderStreaming(streaming,streamTxt); break;
     case 'thinking': addThinkingBlock(ev.content); break;
+    case 'iteration': showIteration(ev.n||1); break;
     case 'tool_start': finalStream(); addToolCard(ev,'running'); _lastToolId=ev.id||''; hint(`🔧 ${ev.name}…`); break;
     case 'tool_stream': appendToolStream(_lastToolId, ev.text); break;
     case 'tool_result': updToolCard(ev.id,'ok',ev.content,ev.elapsed_ms); hint('就绪'); break;
@@ -930,6 +1001,7 @@ function dispatch(ev) {
       onStatus(ev); break;
     case 'done':
       finalStream(); stopTyping(); hint('就绪');
+      showIteration(0);
       busy=false; setSend(true); loadSessions(); break;
     case 'error':
       finalStream(); stopTyping();
@@ -1101,8 +1173,9 @@ function addToolCard(ev, status) {
     <div class="tool-bd" id="tb-${id}">
       <div class="tool-sec"><div class="tool-sec-lbl">参数</div>
         <div class="tool-sec-val">${escH(JSON.stringify(args,null,2))}</div></div>
-      <div class="tool-sec" id="tr-${id}" style="display:none">
+      <div class="tool-sec" id="tr-${id}" style="display:none;position:relative">
         <div class="tool-sec-lbl" id="trc-lbl-${id}">结果</div>
+        <button class="tool-result-copy" onclick="copyToolResult(this)" title="复制结果">复制</button>
         <div class="tool-sec-val" id="trc-${id}"></div>
       </div>
     </div>`;
@@ -1187,10 +1260,17 @@ async function handleFiles(files){
   renderAttachBar();
 }
 function argPreview(nm,args){
-  const pk={BashTool:'command',PowerShellTool:'command',FileReadTool:'path',FileWriteTool:'path',
-    FileEditTool:'path',FileAppendTool:'path',GlobTool:'pattern',GrepTool:'pattern',
-    LSTool:'path',WebSearchTool:'query',WebFetchTool:'url',GitCommitTool:'message'};
+  const pk={
+    BashTool:'command',PowerShellTool:'command',
+    FileReadTool:'path',FileWriteTool:'path',FileEditTool:'path',FileAppendTool:'path',
+    GlobTool:'pattern',GrepTool:'pattern',LSTool:'path',
+    WebSearchTool:'query',WebFetchTool:'url',GitCommitTool:'message',
+    CodeRunnerTool:'language',NotebookRead:'path',NotebookEdit:'action',
+    DockerTool:'action',SQLiteTool:'sql',RegexTool:'pattern',
+    LintTool:'path',FormatTool:'path',TestRunnerTool:'runner',JQTool:'operation',
+  };
   const k=pk[nm]; let v=k&&args[k]!==undefined?String(args[k]):String(Object.values(args)[0]??'');
+  if(nm==='CodeRunnerTool'&&args.language) v=args.language+(args.code?`: ${String(args.code).slice(0,40)}…`:'');
   return v.length>72?v.slice(0,69)+'…':v;
 }
 
@@ -1253,6 +1333,7 @@ function stopGen(){
   // 通知服务器中断当前生成
   if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'stop'}));
   busy=false; setSend(true); stopTyping(); hint('已停止'); finalStream();
+  showIteration(0);
 }
 
 // ── 图片粘贴 ───────────────────────────────────────────────────────
@@ -1292,23 +1373,34 @@ function showPlanMode(active){
 const SLASH_CMDS=[
   {name:'/help',desc:'显示所有命令'},
   {name:'/clear',desc:'清空当前对话历史'},
-  {name:'/compact',desc:'压缩对话历史节省 Token'},
+  {name:'/compact',desc:'AI压缩对话历史节省 Token'},
+  {name:'/snip',desc:'快速裁剪：删除旧工具结果（无需AI）'},
   {name:'/status',desc:'显示会话状态与上下文用量'},
+  {name:'/tokens',desc:'详细的 Token 使用分析'},
   {name:'/cost',desc:'显示 API 费用明细'},
+  {name:'/find',desc:'在对话历史中搜索关键词'},
   {name:'/diff',desc:'显示 Git 差异'},
   {name:'/commit',desc:'AI 生成 Git 提交消息'},
+  {name:'/lint',desc:'对代码运行 lint 静态分析'},
+  {name:'/test',desc:'运行测试套件'},
+  {name:'/format',desc:'格式化代码文件'},
+  {name:'/run',desc:'直接运行代码片段 /run python <代码>'},
   {name:'/plan',desc:'切换计划模式（只描述不执行）'},
   {name:'/undo',desc:'撤销上一轮 AI 的文件修改'},
   {name:'/export',desc:'导出对话为 Markdown 文件'},
   {name:'/model',desc:'切换 AI 提供商和模型'},
   {name:'/config',desc:'查看和修改配置'},
   {name:'/session',desc:'管理历史会话'},
+  {name:'/resume',desc:'恢复历史会话'},
   {name:'/memory',desc:'查看和编辑项目记忆'},
   {name:'/todo',desc:'任务列表管理'},
+  {name:'/task',desc:'查看后台子任务状态'},
   {name:'/skill',desc:'执行和管理技能'},
   {name:'/init',desc:'在当前目录创建 NOTES.md'},
   {name:'/add-dir',desc:'添加额外允许访问的目录'},
+  {name:'/plugin',desc:'管理插件'},
   {name:'/doctor',desc:'检查 API 密钥和依赖状态'},
+  {name:'/context',desc:'显示上下文详情和工具列表'},
   {name:'/version',desc:'显示版本信息'},
   {name:'/exit',desc:'退出（Web 模式下断开连接）'},
 ];
@@ -1907,7 +1999,7 @@ function showPanel(nm){
   document.querySelectorAll('.sb-panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.sb-tab').forEach(t=>t.classList.remove('on'));
   const p=document.getElementById(`panel-${nm}`); if(p) p.classList.add('on');
-  const idx={sessions:0,files:1,skills:2,tools:3,memory:4}; const tabs=document.querySelectorAll('.sb-tab');
+  const idx={sessions:0,files:1,skills:2,tools:3,memory:4,search:5}; const tabs=document.querySelectorAll('.sb-tab');
   if(tabs[idx[nm]??0]) tabs[idx[nm]??0].classList.add('on');
   _memPanelActive = (nm === 'memory');
   if(nm==='files'&&!document.getElementById('fb-list').innerHTML) fbLoad(fbCwd);
@@ -1923,7 +2015,7 @@ function setSend(on){ document.getElementById('send-btn').disabled=!on; document
 function scrollBot(){ const c=document.getElementById('chat'); requestAnimationFrame(()=>c.scrollTop=c.scrollHeight); }
 function clearChatUI(welcome=true){
   const ci=document.getElementById('chat-inner');
-  if(welcome){ ci.innerHTML=`<div id="welcome"><div class="wl-icon"><svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 34 L21 8 L34 34" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 26 L30 26" stroke="white" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/></svg></div><div class="wl-title">Mira</div><div class="wl-sub">AI 智能编程助手 · 代码分析 · Git 管理 · 文件操作<br>Skills 技能 · MCP 外部工具 · 多目录 · 项目记忆</div><div class="wl-quick"><button class="wl-q" onclick="quickAsk('分析当前项目的代码结构和架构')">📂 分析项目</button><button class="wl-q" onclick="runSkill('commit')">✍ 提交消息</button><button class="wl-q" onclick="runSkill('review')">🔍 代码审查</button></div></div>`; }
+  if(welcome){ ci.innerHTML=`<div id="welcome"><div class="wl-icon"><svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 34 L21 8 L34 34" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 26 L30 26" stroke="white" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/></svg></div><div class="wl-title">Mira</div><div class="wl-sub">AI 编程助手 · 52 工具 · 33 命令 · 多提供商<br>Ctrl+P 命令面板 · Ctrl+F 搜索 · / 斜杠命令</div><div class="wl-quick"><button class="wl-q" onclick="quickAsk('分析当前项目的代码结构和架构')">📂 分析项目</button><button class="wl-q" onclick="runSkill('commit')">✍ 提交消息</button><button class="wl-q" onclick="runSkill('review')">🔍 代码审查</button><button class="wl-q" onclick="quickAsk('对当前项目运行 lint 检查')">✅ Lint 检查</button></div></div>`; }
   else ci.innerHTML='';
   stopTyping(); setSend(true); busy=false;
   resetTokens();
@@ -1953,6 +2045,12 @@ function fmtSz(b){ if(b<1024)return b+'B'; if(b<1048576)return(b/1024).toFixed(1
 document.addEventListener('keydown', e => {
   if((e.ctrlKey||e.metaKey)&&e.key==='k'){ e.preventDefault(); newChat(); }
   if((e.ctrlKey||e.metaKey)&&e.key==='u'){ e.preventDefault(); triggerUpload(); }
+  if((e.ctrlKey||e.metaKey)&&e.key==='p'){ e.preventDefault(); openPalette(); }
+  if((e.ctrlKey||e.metaKey)&&e.key==='f'){
+    e.preventDefault();
+    showPanel('search');
+    setTimeout(()=>document.getElementById('search-input')?.focus(),80);
+  }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){
     e.preventDefault();
     const inp=document.getElementById('msg-input');
@@ -1961,7 +2059,7 @@ document.addEventListener('keydown', e => {
   }
   if((e.ctrlKey||e.metaKey)&&e.key==='e'){e.preventDefault();openSettings();}
   if(e.key==='Escape'){
-    ['settings-overlay','cwd-overlay','skill-overlay','mcp-overlay','fv-overlay','create-overlay'].forEach(closeOverlay);
+    ['settings-overlay','cwd-overlay','skill-overlay','mcp-overlay','fv-overlay','create-overlay','palette-overlay'].forEach(closeOverlay);
     document.getElementById('lightbox').classList.add('hidden');
   }
 });
@@ -2264,6 +2362,137 @@ function setTheme(t){
 (function initTheme(){
   setTheme(localStorage.getItem('mira-theme') || 'dark');
 })();
+
+// ══ Quick Snip ══════════════════════════════════════════
+function doSnip(){
+  if(busy){ addSysMsg('AI 正在思考中，请等待完成后再裁剪','warn'); return; }
+  send({type:'chat',prompt:'/snip',provider:curProv,model:curMod,attachments:[]});
+  toast('正在裁剪旧工具结果…','info',2000);
+}
+
+// ══ Iteration counter ════════════════════════════════════
+function showIteration(n){
+  const el=document.getElementById('iter-badge');
+  if(n>1){ el.textContent=`第 ${n} 步`; el.style.display='inline-flex'; }
+  else el.style.display='none';
+}
+
+// ══ Copy tool result ════════════════════════════════════
+function copyToolResult(btn){
+  const val=btn.closest('.tool-sec').querySelector('.tool-sec-val');
+  if(val) navigator.clipboard.writeText(val.textContent||'').then(()=>{ btn.textContent='✓'; setTimeout(()=>btn.textContent='复制',1500); });
+}
+
+// ══ Command Palette ══════════════════════════════════════
+let _paletteIdx = 0;
+let _paletteItems = [];
+
+function buildPaletteItems(){
+  const items = [];
+  // 斜杠命令
+  SLASH_CMDS.forEach(c=>items.push({icon:'/',label:c.name,desc:c.desc,tag:'命令',action:()=>pickSlash(c.name)}));
+  // 工具
+  allTools.forEach(t=>items.push({icon:'🔧',label:t.name,desc:t.description.split('\n')[0],tag:'工具',action:null}));
+  // 常用操作
+  const quickActs=[
+    {icon:'💬',label:'新建对话',desc:'清空并开始新会话',tag:'操作',action:()=>newChat()},
+    {icon:'⊡',label:'压缩上下文',desc:'AI生成摘要替换早期消息',tag:'操作',action:()=>doCompact()},
+    {icon:'✂',label:'裁剪上下文',desc:'快速删除旧工具结果',tag:'操作',action:()=>doSnip()},
+    {icon:'⚙',label:'设置',desc:'打开设置面板',tag:'操作',action:()=>openSettings()},
+    {icon:'📔',label:'项目记忆',desc:'查看NOTES.md',tag:'操作',action:()=>showPanel('memory')},
+    {icon:'📁',label:'文件浏览器',desc:'打开文件面板',tag:'操作',action:()=>showPanel('files')},
+  ];
+  quickActs.forEach(a=>items.push(a));
+  return items;
+}
+
+function openPalette(){
+  _paletteItems = buildPaletteItems();
+  _paletteIdx = 0;
+  renderPaletteItems(_paletteItems);
+  document.getElementById('palette-input').value='';
+  openOverlay('palette-overlay');
+  setTimeout(()=>document.getElementById('palette-input').focus(),60);
+}
+
+function filterPalette(q){
+  const ql=q.toLowerCase();
+  const filtered=ql?_paletteItems.filter(it=>it.label.toLowerCase().includes(ql)||it.desc.toLowerCase().includes(ql)):_paletteItems;
+  _paletteIdx=0;
+  renderPaletteItems(filtered.slice(0,20));
+}
+
+function renderPaletteItems(items){
+  const el=document.getElementById('palette-list');
+  if(!items.length){ el.innerHTML='<div style="padding:16px;text-align:center;color:var(--c-text3);font-size:12px">无匹配结果</div>'; return; }
+  el.innerHTML=items.map((it,i)=>`
+    <div class="palette-item${i===0?' active':''}" data-idx="${i}" onclick="execPaletteItem(${i})" onmouseover="setPaletteIdx(${i})">
+      <span class="pi-icon">${escH(it.icon||'·')}</span>
+      <span class="pi-name">${escH(it.label)}</span>
+      <span class="pi-desc">${escH(it.desc||'')}</span>
+      ${it.tag?`<span class="pi-tag">${escH(it.tag)}</span>`:''}
+    </div>`).join('');
+  el._items=items;
+}
+
+function setPaletteIdx(i){ _paletteIdx=i; document.querySelectorAll('.palette-item').forEach((el,idx)=>el.classList.toggle('active',idx===i)); }
+
+function execPaletteItem(i){
+  const el=document.getElementById('palette-list');
+  const items=el._items||[];
+  const item=items[i];
+  if(!item) return;
+  closeOverlay('palette-overlay');
+  if(item.action){ item.action(); }
+  else if(item.label.startsWith('/')){ pickSlash(item.label); document.getElementById('msg-input').focus(); }
+}
+
+function palettKey(e){
+  const list=document.getElementById('palette-list');
+  const items=list._items||[];
+  if(e.key==='ArrowDown'){ e.preventDefault(); setPaletteIdx(Math.min(_paletteIdx+1,items.length-1)); list.children[_paletteIdx]?.scrollIntoView({block:'nearest'}); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); setPaletteIdx(Math.max(_paletteIdx-1,0)); list.children[_paletteIdx]?.scrollIntoView({block:'nearest'}); }
+  else if(e.key==='Enter'){ execPaletteItem(_paletteIdx); }
+  else if(e.key==='Escape'){ closeOverlay('palette-overlay'); }
+}
+
+// ══ Chat Search ══════════════════════════════════════════
+function searchChat(q){
+  const el=document.getElementById('search-results');
+  if(!q||q.length<2){ el.innerHTML='<div class="sess-empty" style="padding:20px 12px">输入关键词搜索对话</div>'; return; }
+  const ql=q.toLowerCase();
+  // 搜索实际 DOM 中的消息气泡
+  const bubbles=document.querySelectorAll('#chat-inner .msg-bubble');
+  const results=[];
+  bubbles.forEach((bub,i)=>{
+    const txt=bub.innerText||bub.textContent||'';
+    if(txt.toLowerCase().includes(ql)){
+      const isUser=bub.closest('.msg')?.classList.contains('user');
+      results.push({role:isUser?'用户':'AI',text:txt.trim(),el:bub});
+    }
+  });
+  if(!results.length){ el.innerHTML=`<div class="sess-empty" style="padding:16px">未找到 "${escH(q)}"</div>`; return; }
+  el.innerHTML=`<div style="font-size:11px;color:var(--c-text3);padding:4px 8px 6px">${results.length} 条匹配</div>`+
+    results.map((r,i)=>{
+      const preview=r.text.slice(0,120).replace(/\n+/g,' ');
+      const hi=preview.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<span class="sr-hl">${escH(m)}</span>`);
+      return `<div class="search-result" onclick="scrollToResult(${i},'${escJS(q)}')">
+        <div class="sr-role">${r.role}</div>
+        <div class="sr-text">${hi}</div>
+      </div>`;
+    }).join('');
+  el._results=results;
+}
+
+function scrollToResult(i,q){
+  const el=document.getElementById('search-results');
+  const results=el._results||[];
+  if(!results[i]) return;
+  results[i].el.scrollIntoView({behavior:'smooth',block:'center'});
+  // 短暂高亮
+  results[i].el.style.outline='2px solid var(--c-accent)';
+  setTimeout(()=>results[i].el.style.outline='',1500);
+}
 
 // ══ Init ═════════════════════════════════════════════════
 loadProviders();

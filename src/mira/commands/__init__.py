@@ -12,6 +12,8 @@ from mira.commands.dev_commands import (
     DoctorCommand, InitCommand, MemoryCommand, DiffCommand, TodoCommand,
     StatusCommand, CostCommand, CommitCommand, AddDirCommand, PluginCommand,
     PlanCommand, TaskCommand, UndoCommand, ExportCommand,
+    SnipCommand, RunCommand,
+    FindCommand, TokensCommand, LintCommand, TestCommand, FormatCommand,
 )
 from mira.commands.skill_command import SkillCommand
 
@@ -49,6 +51,13 @@ def get_commands(extra_commands=None):
         TaskCommand(),
         UndoCommand(),
         ExportCommand(),
+        SnipCommand(),
+        RunCommand(),
+        FindCommand(),
+        TokensCommand(),
+        LintCommand(),
+        TestCommand(),
+        FormatCommand(),
         # 通用
         HelpCommand(),
         ExitCommand(),

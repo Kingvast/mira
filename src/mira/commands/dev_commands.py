@@ -249,6 +249,8 @@ class DoctorCommand(Command):
             ("fastapi", "Web UI 服务器"),
             ("uvicorn", "Web UI 服务器"),
             ("websockets", "WebSocket 支持"),
+            ("sqlite3", "SQLite 数据库（内置）"),
+            ("json", "JSON 处理（内置）"),
         ]
         for pkg, desc in optional_deps:
             try:
@@ -265,6 +267,40 @@ class DoctorCommand(Command):
             print(f"  ✓ {result.stdout.strip()}")
         except FileNotFoundError:
             print("  ✗ 未安装 Git")
+
+        # 检查代码运行器依赖
+        print("\n代码执行器（CodeRunnerTool）:")
+        import shutil
+        runners = [
+            (sys.executable, "Python（当前环境）"),
+            ("node", "Node.js (JavaScript)"),
+            ("ruby", "Ruby"),
+            ("php", "PHP"),
+            ("go", "Go"),
+            ("rustc", "Rust"),
+            ("Rscript", "R"),
+            ("lua", "Lua"),
+        ]
+        for cmd, desc in runners:
+            if cmd == sys.executable:
+                print(f"  ✓ {desc}")
+            elif shutil.which(cmd):
+                print(f"  ✓ {cmd:<10} {desc}")
+            else:
+                print(f"  ✗ {cmd:<10} {desc} (未安装)")
+
+        # 检查 Docker
+        print("\nDocker:")
+        try:
+            r = subprocess.run(["docker", "--version"], capture_output=True, text=True, timeout=5)
+            if r.returncode == 0:
+                print(f"  ✓ {r.stdout.strip()}")
+            else:
+                print("  ✗ Docker 未运行或未安装")
+        except FileNotFoundError:
+            print("  ✗ Docker 未安装")
+        except Exception:
+            print("  ✗ Docker 不可用")
 
         print(f"\n当前提供商: {engine.provider} / {engine.model}")
         print("健康检查完成")
@@ -788,6 +824,294 @@ class UndoCommand(Command):
             del messages[last_user_idx:]
 
         print(f"✓ 已撤销上一轮操作，还原了 {restored} 个文件")
+
+
+class SnipCommand(Command):
+    """快速裁剪上下文：删除旧的工具调用结果消息"""
+
+    @property
+    def name(self) -> str:
+        return "snip"
+
+    @property
+    def description(self) -> str:
+        return (
+            "快速裁剪上下文：删除旧的工具调用结果（tool_result）消息，节省 token。\n"
+            "与 /compact 不同，/snip 无需调用 AI，直接删除冗余内容，速度更快。\n"
+            "用法: /snip [保留最近N条消息，默认保留全部，只删除工具结果]"
+        )
+
+    def execute(self, command: str, engine: "QueryEngine"):
+        import asyncio
+
+        parts = command.strip().split()
+        keep_last = None
+        if len(parts) > 1:
+            try:
+                keep_last = int(parts[1])
+            except ValueError:
+                print("用法: /snip [保留最近N条消息]")
+                return
+
+        messages = engine.app_state.messages
+        before = len(messages)
+
+        if keep_last is not None and keep_last > 0:
+            # 只保留最近 N 条消息
+            if len(messages) > keep_last:
+                engine.app_state.messages = messages[-keep_last:]
+                after = len(engine.app_state.messages)
+                print(f"✓ 已裁剪：{before} → {after} 条消息（删除了最旧的 {before - after} 条）")
+            else:
+                print(f"消息数（{before}）未超过 {keep_last}，无需裁剪")
+            return
+
+        # 删除工具调用结果消息（role=tool 或 tool_result）
+        cleaned = []
+        removed = 0
+        for msg in messages:
+            role = msg.get("role", "")
+            if role in ("tool", "tool_result"):
+                removed += 1
+            else:
+                # 如果是 assistant 消息，清除其中的 tool_calls 内容但保留文本
+                if role == "assistant":
+                    content = msg.get("content", "")
+                    tool_calls = msg.get("tool_calls", [])
+                    if tool_calls and not content:
+                        # 只有工具调用、无文本内容，跳过
+                        removed += 1
+                        continue
+                    elif tool_calls and content:
+                        # 有文本也有工具调用，只保留文本部分
+                        cleaned.append({"role": "assistant", "content": content})
+                        continue
+                cleaned.append(msg)
+
+        engine.app_state.messages = cleaned
+        after = len(cleaned)
+        print(f"✓ 已裁剪工具结果：{before} → {after} 条消息（删除了 {removed} 条工具调用/结果）")
+
+
+class RunCommand(Command):
+    """直接运行代码片段"""
+
+    @property
+    def name(self) -> str:
+        return "run"
+
+    @property
+    def description(self) -> str:
+        return (
+            "直接运行代码片段。用法: /run <语言> <代码>\n"
+            "示例: /run python print('hello')\n"
+            "支持语言: python, javascript, bash, ruby, php, go 等"
+        )
+
+    def execute(self, command: str, engine: "QueryEngine"):
+        parts = command.strip().split(None, 2)
+        if len(parts) < 3:
+            print("用法: /run <语言> <代码>")
+            print("示例: /run python print('hello, world')")
+            print("      /run bash echo $(date)")
+            return
+
+        language = parts[1]
+        code = parts[2]
+
+        from mira.tools.code_runner import CodeRunnerTool
+        tool = CodeRunnerTool()
+        result = tool.execute({"language": language, "code": code})
+        print(result)
+
+
+class FindCommand(Command):
+    """在对话历史中搜索关键词"""
+
+    @property
+    def name(self) -> str:
+        return "find"
+
+    @property
+    def description(self) -> str:
+        return "在当前对话历史中搜索关键词。用法: /find <关键词>"
+
+    def execute(self, command: str, engine: "QueryEngine"):
+        parts = command.strip().split(None, 1)
+        if len(parts) < 2:
+            print("用法: /find <关键词>")
+            return
+
+        query = parts[1].lower()
+        messages = engine.app_state.messages
+        found = []
+
+        for i, msg in enumerate(messages):
+            role = msg.get("role", "")
+            content = str(msg.get("content", ""))
+            if query in content.lower():
+                found.append((i, role, content))
+
+        if not found:
+            print(f"未找到包含 '{parts[1]}' 的消息")
+            return
+
+        print(f"找到 {len(found)} 条匹配消息（关键词: '{parts[1]}'）:")
+        for idx, role, content in found:
+            role_label = "用户" if role == "user" else "AI"
+            preview = content[:200].replace("\n", " ")
+            # 高亮关键词（终端无颜色时简单标记）
+            hi = preview.replace(parts[1], f"[{parts[1]}]")
+            print(f"\n  [{idx+1}] {role_label}: {hi}{'…' if len(content) > 200 else ''}")
+
+
+class TokensCommand(Command):
+    """详细的 token 使用分析"""
+
+    @property
+    def name(self) -> str:
+        return "tokens"
+
+    @property
+    def description(self) -> str:
+        return "显示详细的 token 使用分析，包括每条消息的 token 估算和占比"
+
+    def execute(self, command: str, engine: "QueryEngine"):
+        from mira.utils.context import estimate_tokens, get_context_window
+
+        messages = engine.app_state.messages
+        if not messages:
+            print("当前对话为空")
+            return
+
+        window = get_context_window(engine.model)
+        total_chars = 0
+        rows = []
+
+        for i, msg in enumerate(messages):
+            role = msg.get("role", "")
+            content = str(msg.get("content", ""))
+            tokens = estimate_tokens(content)
+            total_chars += len(content)
+            rows.append((i + 1, role, tokens, len(content)))
+
+        total_tokens = sum(r[2] for r in rows)
+        usage_pct = total_tokens / window * 100 if window else 0
+
+        print(f"{'─'*60}")
+        print(f"  {'消息Token分析'}")
+        print(f"{'─'*60}")
+        print(f"  {'序':<5} {'角色':<12} {'Token估算':>10} {'字符数':>10} {'占比':>7}")
+        print(f"  {'─'*55}")
+        for seq, role, tokens, chars in rows[:30]:
+            role_label = {"user": "用户", "assistant": "AI", "tool_result": "工具结果"}.get(role, role)
+            pct = tokens / total_tokens * 100 if total_tokens else 0
+            print(f"  {seq:<5} {role_label:<12} {tokens:>10,} {chars:>10,} {pct:>6.1f}%")
+        if len(rows) > 30:
+            print(f"  … (共 {len(rows)} 条消息，仅显示前 30)")
+        print(f"  {'─'*55}")
+        print(f"  {'合计':<12} {total_tokens:>10,} {total_chars:>10,}")
+        print(f"{'─'*60}")
+        print(f"  上下文窗口: {window:,} tokens")
+        print(f"  已使用:     {total_tokens:,} tokens ({usage_pct:.1f}%)")
+        print(f"  剩余:       {max(0, window - total_tokens):,} tokens")
+        if usage_pct >= 82:
+            print(f"  ⚠ 上下文已满 {usage_pct:.0f}%，建议执行 /compact 或 /snip")
+        elif usage_pct >= 70:
+            print(f"  ⚠ 上下文已用 {usage_pct:.0f}%，注意合理管理")
+
+
+class LintCommand(Command):
+    """快速对文件或目录运行 lint 检查"""
+
+    @property
+    def name(self) -> str:
+        return "lint"
+
+    @property
+    def description(self) -> str:
+        return "对文件或目录运行 lint 检查。用法: /lint [文件/目录] [--linter 工具名]"
+
+    def execute(self, command: str, engine: "QueryEngine"):
+        from mira.tools.dev_tools import LintTool
+
+        parts = command.strip().split()
+        path = "."
+        linter = "auto"
+
+        if len(parts) > 1 and not parts[1].startswith("--"):
+            path = parts[1]
+        if "--linter" in parts:
+            idx = parts.index("--linter")
+            if idx + 1 < len(parts):
+                linter = parts[idx + 1]
+
+        tool = LintTool()
+        result = tool.execute({"path": path, "linter": linter})
+        print(result)
+
+
+class TestCommand(Command):
+    """快速运行测试套件"""
+
+    @property
+    def name(self) -> str:
+        return "test"
+
+    @property
+    def description(self) -> str:
+        return "运行测试套件。用法: /test [路径] [--runner 工具名] [-k 过滤模式]"
+
+    def execute(self, command: str, engine: "QueryEngine"):
+        from mira.tools.dev_tools import TestRunnerTool
+
+        parts = command.strip().split()
+        path = "."
+        runner = "auto"
+        pattern = ""
+
+        i = 1
+        while i < len(parts):
+            if parts[i] == "--runner" and i + 1 < len(parts):
+                runner = parts[i + 1]; i += 2
+            elif parts[i] == "-k" and i + 1 < len(parts):
+                pattern = parts[i + 1]; i += 2
+            elif not parts[i].startswith("--"):
+                path = parts[i]; i += 1
+            else:
+                i += 1
+
+        tool = TestRunnerTool()
+        result = tool.execute({"path": path, "runner": runner, "pattern": pattern})
+        print(result)
+
+
+class FormatCommand(Command):
+    """快速格式化代码文件"""
+
+    @property
+    def name(self) -> str:
+        return "format"
+
+    @property
+    def description(self) -> str:
+        return "格式化代码文件。用法: /format [文件/目录] [--check]"
+
+    def execute(self, command: str, engine: "QueryEngine"):
+        from mira.tools.dev_tools import FormatTool
+
+        parts = command.strip().split()
+        path = "."
+        check_only = "--check" in parts
+
+        for p in parts[1:]:
+            if not p.startswith("--"):
+                path = p
+                break
+
+        tool = FormatTool()
+        result = tool.execute({"path": path, "check_only": check_only})
+        print(result)
 
 
 class ExportCommand(Command):

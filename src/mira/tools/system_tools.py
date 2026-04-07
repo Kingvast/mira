@@ -769,3 +769,426 @@ class Base64Tool(Tool):
 
         else:
             return f"错误: 未知操作 '{action}'，可选: encode / decode"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SQLiteTool
+# ══════════════════════════════════════════════════════════════════════════════
+
+class SQLiteTool(Tool):
+    """对本地 SQLite 数据库执行 SQL 查询，查看结构、读写数据。"""
+
+    @property
+    def name(self) -> str:
+        return "SQLiteTool"
+
+    @property
+    def description(self) -> str:
+        return (
+            "操作本地 SQLite 数据库文件（.db / .sqlite / .sqlite3）。\n"
+            "query：执行任意 SQL 语句（SELECT/INSERT/UPDATE/DELETE/CREATE/DROP）；\n"
+            "schema：查看所有表结构；\n"
+            "tables：列出所有表名；\n"
+            "describe：查看指定表的列定义；\n"
+            "export_csv：将查询结果导出为 CSV 文件。\n"
+            "注意：写操作（INSERT/UPDATE/DELETE/CREATE/DROP）会修改数据库文件，请谨慎使用。"
+        )
+
+    @property
+    def input_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "type": "string",
+                    "description": "SQLite 数据库文件路径（支持 .db/.sqlite/.sqlite3，也可用 :memory: 创建内存库）",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "操作类型：query（默认）/ schema / tables / describe / export_csv",
+                },
+                "sql": {
+                    "type": "string",
+                    "description": "SQL 语句（action=query 或 export_csv 时使用）",
+                },
+                "table": {
+                    "type": "string",
+                    "description": "表名（action=describe 时使用）",
+                },
+                "params": {
+                    "type": "array",
+                    "items": {},
+                    "description": "SQL 参数化查询的参数列表（可选，防止 SQL 注入）",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "查询结果最大行数（默认 100）",
+                    "minimum": 1,
+                    "maximum": 10000,
+                },
+                "output_file": {
+                    "type": "string",
+                    "description": "export_csv 时的输出文件路径",
+                },
+            },
+            "required": ["database"],
+        }
+
+    def execute(self, args: Dict[str, Any]) -> str:
+        import sqlite3
+
+        database = str(args.get("database", "")).strip()
+        action = str(args.get("action", "query")).lower()
+        sql = str(args.get("sql", "")).strip()
+        table = str(args.get("table", "")).strip()
+        params = args.get("params") or []
+        limit = int(args.get("limit", 100))
+        output_file = str(args.get("output_file", "")).strip()
+
+        if not database:
+            return "错误: database 参数不能为空"
+
+        if database != ":memory:":
+            db_path = Path(database)
+            if not db_path.exists():
+                # 如果是写操作，允许创建新文件
+                if action == "query" and sql and any(
+                    sql.upper().lstrip().startswith(kw)
+                    for kw in ("CREATE", "INSERT", "ATTACH")
+                ):
+                    pass  # 允许创建
+                elif action == "query":
+                    return f"错误: 数据库文件不存在: {database}"
+
+        try:
+            conn = sqlite3.connect(database)
+            conn.row_factory = sqlite3.Row
+
+            if action == "tables":
+                return self._list_tables(conn)
+            elif action == "schema":
+                return self._show_schema(conn)
+            elif action == "describe":
+                return self._describe_table(conn, table)
+            elif action == "export_csv":
+                return self._export_csv(conn, sql, params, output_file, limit)
+            else:
+                return self._run_query(conn, sql, params, limit)
+
+        except sqlite3.Error as e:
+            return f"SQLite 错误: {e}"
+        except Exception as e:
+            return f"错误: {e}"
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def _run_query(self, conn, sql: str, params: list, limit: int) -> str:
+        import sqlite3
+        if not sql:
+            return "错误: query 操作需要 sql 参数"
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute(sql, params)
+
+            # 写操作
+            if cursor.description is None:
+                conn.commit()
+                return f"✓ 执行成功，影响行数: {cursor.rowcount}"
+
+            # 读操作
+            columns = [d[0] for d in cursor.description]
+            rows = cursor.fetchmany(limit)
+
+            if not rows:
+                return f"查询返回 0 行\n列: {', '.join(columns)}"
+
+            lines = [self._format_table(columns, rows)]
+            total = len(rows)
+            if total >= limit:
+                lines.append(f"\n（显示前 {limit} 行，如需更多请增大 limit 参数）")
+            else:
+                lines.append(f"\n共 {total} 行")
+            return "\n".join(lines)
+
+        except sqlite3.Error as e:
+            return f"SQL 执行错误: {e}"
+
+    def _list_tables(self, conn) -> str:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name")
+        rows = cursor.fetchall()
+        if not rows:
+            return "数据库中没有表"
+        lines = [f"表/视图（共 {len(rows)} 个）:"]
+        for row in rows:
+            lines.append(f"  {'[视图]' if row[1]=='view' else '[表]  '} {row[0]}")
+        return "\n".join(lines)
+
+    def _show_schema(self, conn) -> str:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL ORDER BY name"
+        )
+        rows = cursor.fetchall()
+        if not rows:
+            return "数据库中没有表"
+        lines = [f"数据库结构（{len(rows)} 张表）:"]
+        for name, ddl in rows:
+            lines.append(f"\n── {name} " + "─" * 40)
+            lines.append(ddl or "（无 DDL）")
+            # 行数统计
+            try:
+                count_cur = conn.cursor()
+                count_cur.execute(f"SELECT COUNT(*) FROM [{name}]")
+                count = count_cur.fetchone()[0]
+                lines.append(f"  → 共 {count:,} 行")
+            except Exception:
+                pass
+        return "\n".join(lines)
+
+    def _describe_table(self, conn, table: str) -> str:
+        if not table:
+            return "错误: describe 操作需要 table 参数"
+        cursor = conn.cursor()
+        try:
+            cursor.execute(f"PRAGMA table_info([{table}])")
+            cols = cursor.fetchall()
+            if not cols:
+                return f"表不存在或无列信息: {table}"
+            lines = [f"表: {table}  （{len(cols)} 列）", "─" * 60]
+            lines.append(f"  {'序号':<5} {'列名':<25} {'类型':<15} {'非空':<6} {'默认值':<15} {'主键'}")
+            lines.append("  " + "─" * 58)
+            for col in cols:
+                cid, name, dtype, notnull, dflt, pk = col
+                lines.append(
+                    f"  {cid:<5} {name:<25} {dtype:<15} {'YES' if notnull else 'NO':<6} "
+                    f"{str(dflt) if dflt is not None else '':<15} {'PK' if pk else ''}"
+                )
+            # 索引信息
+            cursor.execute(f"PRAGMA index_list([{table}])")
+            indexes = cursor.fetchall()
+            if indexes:
+                lines.append(f"\n索引（{len(indexes)} 个）:")
+                for idx in indexes:
+                    lines.append(f"  • {idx[1]} {'(unique)' if idx[2] else ''}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"错误: {e}"
+
+    def _export_csv(self, conn, sql: str, params: list, output_file: str, limit: int) -> str:
+        import csv
+        import io
+        if not sql:
+            return "错误: export_csv 需要 sql 参数"
+        if not output_file:
+            return "错误: export_csv 需要 output_file 参数"
+
+        cursor = conn.cursor()
+        cursor.execute(sql, params)
+        if cursor.description is None:
+            return "错误: 该 SQL 不返回数据（非 SELECT 语句）"
+
+        columns = [d[0] for d in cursor.description]
+        rows = cursor.fetchmany(limit)
+
+        with open(output_file, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            writer.writerow(columns)
+            writer.writerows(rows)
+
+        return f"✓ 已导出 {len(rows)} 行到: {Path(output_file).resolve()}"
+
+    @staticmethod
+    def _format_table(columns: list, rows: list) -> str:
+        """将查询结果格式化为 ASCII 表格"""
+        # 计算列宽
+        widths = [len(str(c)) for c in columns]
+        str_rows = []
+        for row in rows:
+            s_row = [str(v) if v is not None else "NULL" for v in row]
+            str_rows.append(s_row)
+            for i, val in enumerate(s_row):
+                widths[i] = min(max(widths[i], len(val)), 40)
+
+        sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+        header = "|" + "|".join(f" {str(c):<{w}} " for c, w in zip(columns, widths)) + "|"
+        lines = [sep, header, sep]
+        for s_row in str_rows:
+            line = "|" + "|".join(
+                f" {v[:w]:<{w}} " if len(v) <= w else f" {v[:w-1]}… "
+                for v, w in zip(s_row, widths)
+            ) + "|"
+            lines.append(line)
+        lines.append(sep)
+        return "\n".join(lines)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  RegexTool
+# ══════════════════════════════════════════════════════════════════════════════
+
+class RegexTool(Tool):
+    """正则表达式测试、提取、替换工具。"""
+
+    @property
+    def name(self) -> str:
+        return "RegexTool"
+
+    @property
+    def description(self) -> str:
+        return (
+            "正则表达式工具。\n"
+            "test：测试正则是否匹配文本，返回所有匹配项；\n"
+            "extract：从文本中提取所有匹配的捕获组；\n"
+            "replace：用正则替换文本中的匹配内容；\n"
+            "split：按正则分割文本；\n"
+            "validate：校验整个字符串是否完整匹配正则（如验证邮箱/URL格式）。\n"
+            "适合调试正则表达式、文本解析、数据清洗。"
+        )
+
+    @property
+    def input_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "操作: test / extract / replace / split / validate",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "正则表达式模式",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "要处理的文本",
+                },
+                "replacement": {
+                    "type": "string",
+                    "description": "替换字符串（replace 时使用，支持 \\1 \\2 等反向引用）",
+                },
+                "flags": {
+                    "type": "string",
+                    "description": "正则标志（可组合）: i（忽略大小写）/ m（多行）/ s（点号匹配换行）/ x（详细模式）",
+                },
+                "count": {
+                    "type": "integer",
+                    "description": "replace 时最多替换次数（默认 0=全部替换）",
+                },
+            },
+            "required": ["action", "pattern", "text"],
+        }
+
+    def execute(self, args: Dict[str, Any]) -> str:
+        import re
+
+        action = str(args.get("action", "test")).lower()
+        pattern = str(args.get("pattern", ""))
+        text = str(args.get("text", ""))
+        replacement = str(args.get("replacement", ""))
+        flags_str = str(args.get("flags", "")).lower()
+        count = int(args.get("count", 0))
+
+        if not pattern:
+            return "错误: pattern 参数不能为空"
+
+        # 解析标志
+        re_flags = 0
+        if "i" in flags_str:
+            re_flags |= re.IGNORECASE
+        if "m" in flags_str:
+            re_flags |= re.MULTILINE
+        if "s" in flags_str:
+            re_flags |= re.DOTALL
+        if "x" in flags_str:
+            re_flags |= re.VERBOSE
+
+        try:
+            compiled = re.compile(pattern, re_flags)
+        except re.error as e:
+            return f"正则语法错误: {e}"
+
+        if action == "test":
+            return self._test(compiled, text)
+        elif action == "extract":
+            return self._extract(compiled, text)
+        elif action == "replace":
+            return self._replace(compiled, text, replacement, count)
+        elif action == "split":
+            return self._split(compiled, text)
+        elif action == "validate":
+            return self._validate(compiled, text)
+        else:
+            return f"错误: 未知操作 '{action}'，可选: test / extract / replace / split / validate"
+
+    def _test(self, pat, text: str) -> str:
+        import re
+        matches = list(pat.finditer(text))
+        if not matches:
+            return f"✗ 未找到匹配（模式: {pat.pattern}）"
+
+        lines = [f"✓ 找到 {len(matches)} 个匹配:"]
+        for i, m in enumerate(matches[:20], 1):
+            start, end = m.start(), m.end()
+            groups = m.groups()
+            lines.append(f"\n  [{i}] 位置 {start}-{end}: {repr(m.group())}")
+            if groups:
+                for j, g in enumerate(groups, 1):
+                    lines.append(f"       组 {j}: {repr(g)}")
+            if m.groupdict():
+                for name, val in m.groupdict().items():
+                    lines.append(f"       {name}: {repr(val)}")
+        if len(matches) > 20:
+            lines.append(f"\n  … (仅显示前 20 个，共 {len(matches)} 个)")
+        return "\n".join(lines)
+
+    def _extract(self, pat, text: str) -> str:
+        matches = pat.findall(text)
+        if not matches:
+            return "✗ 未找到匹配"
+        lines = [f"提取结果（{len(matches)} 条）:"]
+        for i, m in enumerate(matches[:50], 1):
+            lines.append(f"  {i:3}. {repr(m)}")
+        if len(matches) > 50:
+            lines.append(f"  … (仅显示前 50 条，共 {len(matches)} 条)")
+        return "\n".join(lines)
+
+    def _replace(self, pat, text: str, replacement: str, count: int) -> str:
+        result, num = pat.subn(replacement, text, count=count)
+        if num == 0:
+            return f"✗ 未找到匹配，文本未更改"
+        lines = [
+            f"✓ 替换了 {num} 处",
+            "── 替换后结果 " + "─" * 30,
+            result[:4000] + ("…" if len(result) > 4000 else ""),
+        ]
+        return "\n".join(lines)
+
+    def _split(self, pat, text: str) -> str:
+        parts = pat.split(text)
+        lines = [f"分割结果（{len(parts)} 段）:"]
+        for i, p in enumerate(parts[:30], 1):
+            lines.append(f"  [{i}] {repr(p)}")
+        if len(parts) > 30:
+            lines.append(f"  … (共 {len(parts)} 段)")
+        return "\n".join(lines)
+
+    def _validate(self, pat, text: str) -> str:
+        import re
+        m = pat.fullmatch(text)
+        if m:
+            return f"✓ 完整匹配（整个字符串与模式匹配）"
+        else:
+            # 尝试部分匹配
+            partial = pat.search(text)
+            if partial:
+                return (
+                    f"✗ 不完整匹配（字符串有部分不符合模式）\n"
+                    f"  匹配部分: {repr(partial.group())} (位置 {partial.start()}-{partial.end()})\n"
+                    f"  字符串全长: {len(text)}"
+                )
+            return f"✗ 不匹配（字符串与模式完全不符）"
